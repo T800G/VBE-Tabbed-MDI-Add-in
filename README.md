@@ -1,5 +1,5 @@
 # VBE Tabbed MDI Add-in
-Tabbed MDI add-in for Microsoft Office VBA editor.<br>
+Add-in for Microsoft Office which adds tabs to VBA code editor.<br>
 <br>
 ![alt text](https://github.com/T800G/VBE-Tabbed-MDI-Add-in/blob/master/1.png)<br>
 ![alt text](https://github.com/T800G/VBE-Tabbed-MDI-Add-in/blob/master/2.png)<br>
