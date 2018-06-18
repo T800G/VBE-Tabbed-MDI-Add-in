@@ -12,7 +12,8 @@ Enhanced References dialog.<br>
 
 ## Minimum system requirements
 Windows 2000<br>
-Office 97 (requires manual selection of add-ins)<br>
+Office 97<br>
 32-bit & 64-bit Office<br>
 <br>
-You can install this add-in as a standard user (non-administrator).
+You can install this add-in as a standard user (non-administrator).<br>
+If you are using Office 97 you have to open Add-ins dialog and manually select .xla and .dot files.
