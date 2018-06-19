@@ -16,4 +16,4 @@ Office 97<br>
 32-bit & 64-bit Office<br>
 <br>
 You can install this add-in as a standard user (non-administrator).<br>
-If you are using Office 97 you have to open Add-ins dialog and manually select .xla and .dot files.
+If you are using Office 97 you have to open Add-ins dialog and manually select .xla or .dot file.
