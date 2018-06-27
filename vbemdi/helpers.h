@@ -41,6 +41,19 @@ BOOL IsWindowMaximized(HWND hWnd)
 return (SW_SHOWMAXIMIZED==wpl.showCmd);
 }
 
+UINT GetChildWindowCount(HWND hWnd, __in_opt LPCTSTR lpszChildClass, __in_opt BOOL bVisibleOnly)
+{
+	UINT c=0;
+	HWND hwch = FindWindowEx(hWnd, NULL, lpszChildClass, NULL);
+	while (hwch)
+	{
+		if (bVisibleOnly) {if (IsWindowVisible(hwch)) c++;}
+		else c++;
+		hwch = FindWindowEx(hWnd, hwch, lpszChildClass, NULL);
+	}
+return c;
+}
+
 HWND GetActiveMDIChild(WNDPROC mdiProc, HWND hwMDI, LPARAM lParam=NULL)
 {
 	return (HWND)mdiProc(hwMDI, WM_MDIGETACTIVE, NULL, lParam);

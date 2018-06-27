@@ -66,16 +66,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		//show context menu
 		case WM_RBUTTONUP:
 			{
-//don't show close menu on Object browser
-				if ((idx=CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
-				{
-					TCITEM ti;
-					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_PARAM;
-					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
-						if (IsWindowClass((HWND)ti.lParam, _T("DockingView"))) return 0;
-				}
-
+//TODO match VBA IDE language (enumerate languages for resource ID=4040)
 //TODO localize menu in more languages
 //TODO more testing of localization
 				HMENU hctxmenu = LoadMenuLC((HINSTANCE)&__ImageBase, IDM_TABSTRIP, GetUserDefaultUILanguage());
@@ -83,6 +74,14 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				HMENU hmenuTrackPopup = GetSubMenu(hctxmenu, 0);
 				if (hmenuTrackPopup)
 				{
+					//disable menu items based on child windows count & type
+					UINT chcount = GetChildWindowCount(g_hwMDIwnd, NULL, TRUE);//VBMdiChildHack is invisible
+					if (chcount < 2)
+					{
+						EnableMenuItem(hmenuTrackPopup, IDC_MDICLOSEOTHERS, MF_BYCOMMAND | MF_GRAYED);
+						EnableMenuItem(hmenuTrackPopup, IDC_MDICLOSEALL,    MF_BYCOMMAND | MF_GRAYED);
+					}
+					//show tab context menu
 					POINT pt;
 					pt.x = GET_X_LPARAM(lParam);
 					pt.y = GET_Y_LPARAM(lParam),
@@ -281,10 +280,9 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		break;
 		case TCM_DELETEITEM:
 			DBGTRACE("mdi TCM_DELETEITEM\n");
-			//object browser is special case
-			if (IsWindowClass((HWND)wParam, _T("DockingView"))) return FALSE;
-
-			if (0==CallWindowProc(g_oldMDIproc, hWnd, WM_MDIDESTROY, wParam, NULL))
+			//simulate closing the mdi child from it's system menu
+			//this also works for browsert object window which is actually hosted in DockingView mdi child
+			if (0==SendMessage((HWND)wParam, WM_SYSCOMMAND, SC_CLOSE, NULL))
 			{
 				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, CallWindowProc(g_oldMDIproc, hWnd, WM_MDIGETACTIVE, NULL, NULL), NULL);
 				return TRUE;
