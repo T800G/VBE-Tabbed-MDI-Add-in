@@ -66,9 +66,24 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		//show context menu
 		case WM_RBUTTONUP:
 			{
-//TODO match VBA IDE language (enumerate languages for resource ID=4040)
+				POINT pt;
+				pt.x = GET_X_LPARAM(lParam);
+				pt.y = GET_Y_LPARAM(lParam);
+
+				//don't show menu if mouse button is not released on the active tab (to which menu belongs)
+				RECT rc;
+				SetRectEmpty(&rc);
+				if ((idx=CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
+				{
+					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMRECT, idx, (LPARAM)&rc))
+					{
+						if (!PtInRect(&rc, pt)) return 0;
+					}
+				}
+
+//TODO match VBA IDE language
 //TODO localize menu in more languages
-//TODO more testing of localization
+//TODO needs more testing of localization
 				HMENU hctxmenu = LoadMenuLC((HINSTANCE)&__ImageBase, IDM_TABSTRIP, GetUserDefaultUILanguage());
 				if (hctxmenu == NULL) return 0;
 				HMENU hmenuTrackPopup = GetSubMenu(hctxmenu, 0);
@@ -82,9 +97,6 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 						EnableMenuItem(hmenuTrackPopup, IDC_MDICLOSEALL,    MF_BYCOMMAND | MF_GRAYED);
 					}
 					//show tab context menu
-					POINT pt;
-					pt.x = GET_X_LPARAM(lParam);
-					pt.y = GET_Y_LPARAM(lParam),
 					ClientToScreen(hWnd, &pt);
 					TrackPopupMenu(hmenuTrackPopup, TPM_LEFTALIGN, pt.x, pt.y, 0, hWnd, NULL);
 				}
@@ -237,7 +249,7 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		break;
 
 		case WM_WINDOWPOSCHANGED:
-			{
+		{
 			DBGTRACE("mdi WM_WINDOWPOSCHANGED\n");
 			//reposition tabstrip
 			//_ASSERTE(g_hwMDIwnd==hWnd);
@@ -246,19 +258,19 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			GetWindowRect(hWnd, &rc);
 			ScreenToClientRect(GetParent(hWnd), &rc);
 			SetWindowPos(g_hwTabStrip, HWND_TOP, rc.left+GetSystemMetrics(SM_CXEDGE), rc.top, (rc.right-rc.left-GetSystemMetrics(SM_CXEDGE)), g_tabstripHeight, SWP_SHOWWINDOW);
-			}
+		}
 		break; 
 		
 		case WM_MDIGETACTIVE:
+		{
+			LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
+			if (g_hwLastActiveMDIChild != (HWND)lret)
 			{
-				LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
-				if (g_hwLastActiveMDIChild != (HWND)lret)
-				{
-					g_hwLastActiveMDIChild = (HWND)lret;
-					SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
-				}
-			return lret;
+				g_hwLastActiveMDIChild = (HWND)lret;
+				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
 			}
+		return lret;
+		}
 		break;
 			
 		//route MDI messages to tabstrip
@@ -518,26 +530,26 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 		switch (dwEvent)
 		{
 		case EVENT_OBJECT_SHOW:
-				if (IsWindowClass(hwnd, _T("wndclass_desked_gsk")))
-				{
-					DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
-					InitTabstrip(hwnd);
-				}
+			if (IsWindowClass(hwnd, _T("wndclass_desked_gsk")))
+			{
+				DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
+				InitTabstrip(hwnd);
+			}
 
-				if (IsWindowClass(hwnd, _T("#32770")))
-				{
-					DBGTRACE("EVENT_OBJECT_SHOW  #32770\n");
-					InitReferenceDialog(hwnd);
-				}
+			if (IsWindowClass(hwnd, _T("#32770")))
+			{
+				DBGTRACE("EVENT_OBJECT_SHOW  #32770\n");
+				InitReferenceDialog(hwnd);
+			}
 
-			break;
+		break;
 		case EVENT_OBJECT_HIDE:  //dialog is hidden before it is destroyed
-				if (IsWindowClass(hwnd, _T("#32770")))
-				{
-					DBGTRACE("EVENT_OBJECT_HIDE  #32770\n");
-					DestroyPathBox(hwnd);
-				}
-			break;
+			if (IsWindowClass(hwnd, _T("#32770")))
+			{
+				DBGTRACE("EVENT_OBJECT_HIDE  #32770\n");
+				DestroyPathBox(hwnd);
+			}
+		break;
 		}
 
 }

@@ -5,7 +5,7 @@
 //http://blogs.msdn.com/b/oldnewthing/archive/2004/01/30/65013.aspx
 //this function can only be used if resources are compiled with /n switch:
 // rc.exe /n
-inline LPCWSTR LoadStringLCNull(HINSTANCE hResInstance, UINT uID, WORD wLangID)
+LPCWSTR LoadStringLCNull(HINSTANCE hResInstance, UINT uID, WORD wLangID)
 {
 	if (HRSRC hrsrc=FindResourceEx(hResInstance, RT_STRING, MAKEINTRESOURCE(uID/16 + 1), wLangID))
 	{
@@ -26,7 +26,7 @@ return NULL;
 }
 
 //similar to LoadString
-inline UINT LoadStringLC(HINSTANCE hResInstance, UINT uID, LPTSTR pwBuffer, UINT nBufferMax, WORD wLangID)
+UINT LoadStringLC(HINSTANCE hResInstance, UINT uID, LPTSTR pwBuffer, UINT nBufferMax, WORD wLangID)
 {
 	pwBuffer[0]=L'\0';
 	if (HRSRC hrsrc=FindResourceEx(hResInstance, RT_STRING, MAKEINTRESOURCE(uID/16 + 1), wLangID))
@@ -55,7 +55,7 @@ return 0;
 }
 
 
-inline HMENU LoadMenuLC(HINSTANCE hResInstance, UINT uID, WORD wLangID)
+HMENU LoadMenuLC(HINSTANCE hResInstance, UINT uID, WORD wLangID)
 {
 	HMENU hMenu = NULL;
 	if (HRSRC hResource = FindResourceEx(hResInstance, RT_MENU, MAKEINTRESOURCE(uID), wLangID))
