@@ -8,7 +8,7 @@ extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 IDispatch* g_pApplication;
 
-#define MAX_WNDCLASSNAME 256
+#define MAX_WNDCLASSNAME 1024//256 //mdi child wnd caption could be longer than 256 chars
 TCHAR g_strBuff[MAX_WNDCLASSNAME];
 
 HWINEVENTHOOK g_hEventHook;
@@ -168,18 +168,51 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 					}
 					FixVBMdiChildHack();
 				}
-				break;			
+				break;	
+			case IDC_MDIUPDATECHILDCAPTION:
+				{
+					TCITEM ti;
+					LRESULT tabcount = CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, NULL, NULL);
+					for (idx = (tabcount-1); idx >= 0; idx--)
+					{
+						SecureZeroMemory(&ti, sizeof(TCITEM));
+						ti.mask=TCIF_PARAM;
+						if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
+						{
+							if (ti.lParam == lParam)
+							{   //get text size and allocate buffer
+								LRESULT lBufLen = SendMessage((HWND)lParam, WM_GETTEXTLENGTH, NULL, NULL) + 1;//terminating null is not counted
+								LPTSTR pszBuf = (LPTSTR)LocalAlloc(LPTR, lBufLen*sizeof(TCHAR));
+								if (pszBuf)
+								{
+									if (SendMessage((HWND)lParam, WM_GETTEXT, lBufLen, (LPARAM)pszBuf) == (lBufLen-1))
+									{
+										ti.pszText = pszBuf;
+										ti.mask = TCIF_TEXT;
+										CallWindowProc(g_oldTabProc, hWnd, TCM_SETITEM, idx, (LPARAM)&ti);
+									}
+									LocalFree(pszBuf);								
+								}
+								else
+								{
+									DBGTRACE2("LocalAlloc failed\n");
+								}
+								break;
+							}
+						}
+					}
+				}
+				break;
 			}
 		break;
-
 
 		//notifications from MDI subclass proc
 		case WM_MDIACTIVATE:
 			DBGTRACE("tab WM_MDIACTIVATE\n");
 			{
-				LRESULT i=CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
+				LRESULT tabcount=CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
 				TCITEM ti;
-				for (idx=0; idx < i; idx++)
+				for (idx=0; idx < tabcount; idx++)
 				{
 					SecureZeroMemory(&ti, sizeof(TCITEM));
 					ti.mask=TCIF_PARAM;
@@ -293,7 +326,7 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		case TCM_DELETEITEM:
 			DBGTRACE("mdi TCM_DELETEITEM\n");
 			//simulate closing the mdi child from it's system menu
-			//this also works for browsert object window which is actually hosted in DockingView mdi child
+			//this also works for browser object window which is actually hosted in DockingView mdi child
 			if (0==SendMessage((HWND)wParam, WM_SYSCOMMAND, SC_CLOSE, NULL))
 			{
 				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, CallWindowProc(g_oldMDIproc, hWnd, WM_MDIGETACTIVE, NULL, NULL), NULL);
@@ -361,7 +394,7 @@ void InitTabstrip(HWND hwVBE)
 			TCITEM ti;//insert dummy item to get correct tab height
 			SecureZeroMemory(&ti, sizeof(TCITEM));
 			TabCtrl_InsertItem(g_hwTabStrip, 0, &ti);
-			TabCtrl_GetItemRect(g_hwTabStrip, 0, &rc);					
+			TabCtrl_GetItemRect(g_hwTabStrip, 0, &rc);
 			TabCtrl_DeleteAllItems(g_hwTabStrip);
 		}
 		else TabCtrl_GetItemRect(g_hwTabStrip, 0, &rc);
@@ -550,6 +583,12 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 				DestroyPathBox(hwnd);
 			}
 		break;
+		case EVENT_OBJECT_NAMECHANGE:
+			if (g_hwMDIwnd && (GetParent(hwnd)==g_hwMDIwnd)) //faster than checking window class name (VbaWindow)
+			{
+				if (g_hwTabStrip) SendMessage(g_hwTabStrip, WM_COMMAND, (WPARAM)IDC_MDIUPDATECHILDCAPTION, (LPARAM)hwnd);
+			}
+		break;
 		}
 
 }
@@ -580,7 +619,7 @@ STDAPI Connect(IDispatch *pApplication)
 	{
 		if (NULL==g_hEventHook)
 		{
-			g_hEventHook = SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_HIDE, (HINSTANCE)&__ImageBase,
+			g_hEventHook = SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_NAMECHANGE, (HINSTANCE)&__ImageBase,
 											WinEventProcCallback, GetCurrentProcessId(), 0, WINEVENT_INCONTEXT);
 			if (g_hEventHook)
 			{
