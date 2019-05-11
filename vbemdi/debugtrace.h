@@ -1,4 +1,7 @@
 #include <tchar.h>
+#include <stdio.h>
+#include <stdarg.h>
+
 #ifndef _DEBUGTRACE_8A7AC67B_B017_4AAB_BBA7_1EE09FEDC416_
 #define _DEBUGTRACE_8A7AC67B_B017_4AAB_BBA7_1EE09FEDC416_
 #ifdef _DEBUG
@@ -27,7 +30,6 @@ void DbgTrace(int line, const char* fileName, const char* msg, ...)
 #define DBGTRACE(msg, ...)
 #define DBGTRACE2(msg, ...)
 #endif//_DEBUG
-
 
 char* DbgGetWindowsMessageNameA(UINT message)
 {
@@ -243,6 +245,40 @@ char* DbgGetWindowsMessageNameA(UINT message)
 		default: return "unknown message";
 	}
 //	return "unknown message";
+}
+
+char* DbgGetEditControlNotificationCode(WORD code)
+{
+	switch (code)
+	{
+		case EN_SETFOCUS: return "EN_SETFOCUS";
+		case EN_KILLFOCUS: return "EN_KILLFOCUS";
+		case EN_CHANGE: return "EN_CHANGE";
+		case EN_UPDATE: return "EN_UPDATE";
+		case EN_ERRSPACE: return "EN_ERRSPACE";
+		case EN_MAXTEXT: return "EN_MAXTEXT";
+		case EN_HSCROLL: return "EN_HSCROLL";
+		case EN_VSCROLL: return "EN_VSCROLL";
+		default: return "unknown notification code";
+	}
+}
+
+char* DbgGetButtonControlNotificationCode(WORD code)
+{
+	switch (code)
+	{
+	case BN_CLICKED: return "BN_CLICKED";
+	case BN_PAINT: return "BN_PAINT";
+	case BN_HILITE: return "BN_HILITE";
+	case BN_UNHILITE: return "BN_UNHILITE";
+	case BN_DISABLE: return "BN_DISABLE";
+	case BN_DOUBLECLICKED: return "BN_DOUBLECLICKED";
+#if(WINVER >= 0x0400)
+	case BN_SETFOCUS: return "BN_SETFOCUS";
+	case BN_KILLFOCUS: return "BN_KILLFOCUS";
+#endif
+	default: return "unknown notification code";
+	}
 }
 
 #endif//_DEBUGTRACE_8A7AC67B_B017_4AAB_BBA7_1EE09FEDC416_

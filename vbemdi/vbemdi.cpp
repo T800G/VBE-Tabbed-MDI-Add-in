@@ -24,8 +24,14 @@ long g_tabstripHeight;
 HFONT g_hMenuFont;
 
 HWND g_hwPathEditBox;
-HWND g_hwStatic;
-WNDPROC g_oldStaticProc;
+HWND g_hwPathStatic;
+WNDPROC g_oldPathStaticProc;
+
+HWND g_hwSearchStatic;
+HWND g_hwSearchEditBox;
+WNDPROC g_oldSearchStaticProc;
+WNDPROC g_oldSearchEditProc;
+//HWND g_hwSearchButton;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void FixVBMdiChildHack()
@@ -297,10 +303,23 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		case WM_MDIGETACTIVE:
 		{
 			LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
-			if (g_hwLastActiveMDIChild != (HWND)lret)
+			//collapsing the project in project treeview pane only hides mdi childs and fires WM_MDIGETACTIVE !!!
+//if (!IsWindowVisible((HWND)lret))
+//{
+//	DBGTRACE("WM_MDIACTIVATE hidden=0x%x\n", lret);
+//	//PostMessage(hWnd, WM_MDIDESTROY, (WPARAM)lret, NULL);//close all mdi childs of collapsed project
+//	//PostMessage(g_hwTabStrip, WM_MDIDESTROY, (WPARAM)lret, NULL);
+//	PostMessage((HWND)lret, WM_SYSCOMMAND, SC_CLOSE, 0);
+//	SendMessage(g_hwTabStrip, WM_MDIDESTROY, wParam, NULL);
+//	//SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)GetActiveMDIChild(g_oldMDIproc, hWnd), NULL);
+//}
+//else
 			{
-				g_hwLastActiveMDIChild = (HWND)lret;
-				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
+				if (g_hwLastActiveMDIChild != (HWND)lret)
+				{
+					g_hwLastActiveMDIChild = (HWND)lret;
+					SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
+				}
 			}
 		return lret;
 		}
@@ -415,7 +434,7 @@ void InitTabstrip(HWND hwVBE)
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-LRESULT CALLBACK NewStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK NewPathStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
     {
@@ -425,28 +444,114 @@ LRESULT CALLBACK NewStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 			RedrawWindow(GetDlgItem(GetParent(hWnd), 5050), NULL,NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 		break;
 		case WM_NCDESTROY:
-			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldStaticProc))) g_oldStaticProc=NULL;
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldPathStaticProc))) g_oldPathStaticProc=NULL;
 			else
 			{
 				DBGTRACE2("ERROR unsubclass MDI\n");
 			}
 		break;//resume default processing
 	}
-return CallWindowProc(g_oldStaticProc, hWnd, message, wParam, lParam);
+return CallWindowProc(g_oldPathStaticProc, hWnd, message, wParam, lParam);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void InitReferenceDialog(HWND hDlg)
+LRESULT CALLBACK NewSearchEditProc(HWND hWnd, WORD message, WORD wParam, LONG lParam)
+{
+	switch (message)
+	{
+		//https://support.microsoft.com/en-us/help/102589/how-to-use-the-enter-key-from-edit-controls-in-a-dialog-box
+		case WM_GETDLGCODE: return (DLGC_WANTALLKEYS | CallWindowProc(g_oldSearchEditProc, hWnd, message, wParam, lParam));
+		case WM_CHAR: //Process this message to avoid message beeps.
+			switch (wParam)
+			{
+				case VK_ESCAPE: return 0;
+				case VK_TAB: return 0;
+				case VK_RETURN: return 0;
+				default: break;
+			}
+		break;
+		case WM_KEYDOWN:
+			switch (wParam)
+			{
+				case VK_TAB:
+					PostMessage (GetParent(g_hwSearchStatic), WM_NEXTDLGCTL, 0, 0L);//must post directly to dialog, not parent static
+					return 0;
+				case VK_RETURN://pretend that search button is clicked
+					PostMessage(g_hwSearchStatic, WM_COMMAND, MAKEWPARAM(ID_REFSEARCH_BUTTON, BN_CLICKED), (LPARAM)hWnd);//pass hwnd as LPARAM
+					return 0;
+				default: break;
+			}
+		break;
+		case WM_NCDESTROY:
+			DBGTRACE2("SearchEdit  WM_NCDESTROY\n");
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchEditProc))) g_oldSearchEditProc=NULL;
+			else
+			{
+				DBGTRACE2("ERROR unsubclass search\n");
+			}
+		break;
+		default: break;
+	}
+return CallWindowProc(g_oldSearchEditProc, hWnd, message, wParam, lParam);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+LRESULT CALLBACK NewSearchStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+    {
+		case WM_CTLCOLOREDIT:
+			SetBkColor((HDC)wParam, GetSysColor(COLOR_WINDOW));
+			SetTextColor((HDC)wParam, GetSysColor(COLOR_WINDOWTEXT));
+			return (LRESULT)GetSysColorBrush(COLOR_WINDOW);
+		break;
+		case WM_COMMAND:
+			{   //handle search commands from button or editbox
+				WORD wID = LOWORD(wParam);
+				//WORD wNotifyCode = HIWORD(wParam);
+				//HWND hwCtl = (HWND)lParam;
+				switch (wID)
+				{
+					//case ID_REFSEARCH_EDIT:
+					//	DBGTRACE("ID_REFSEARCH_EDIT  wNotifyCode=%s\n", DbgGetEditControlNotificationCode(wNotifyCode));
+					//break;
+					case ID_REFSEARCH_BUTTON:
+						DBGTRACE("ID_REFSEARCH_BUTTON  wNotifyCode=%s\n", DbgGetButtonControlNotificationCode(HIWORD(wParam)));
+						if (GetWindowText(g_hwSearchEditBox, g_strBuff, 1000))
+						{
+							HWND hwListBox = GetDlgItem(GetParent(hWnd), ID_VBE_REFDLG_LISTBOX);
+							if (FindListBoxItem(hwListBox, g_strBuff, TRUE, TRUE) != LB_ERR)
+							{
+								RedrawWindow(hwListBox, NULL, NULL, RDW_ERASE|RDW_INVALIDATE|RDW_ERASENOW|RDW_UPDATENOW);//fix redraw problem
+								//notify parent dialog to update reference path
+								SendMessage(GetParent(hwListBox), WM_COMMAND, MAKEWPARAM(ID_VBE_REFDLG_LISTBOX, LBN_SELCHANGE), (LPARAM)hwListBox);
+							}
+						}
+					break;
+				}
+			}
+		break;
+		case WM_NCDESTROY:
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchStaticProc))) g_oldSearchStaticProc=NULL;
+			else
+			{
+				DBGTRACE2("ERROR unsubclass search\n");
+			}
+		break;//resume default processing
+	}
+return CallWindowProc(g_oldSearchStaticProc, hWnd, message, wParam, lParam);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void InitReferencesDialog(HWND hDlg)
 {
 	if (IsWindow(g_hwPathEditBox)) return;
 	
 	//check if dialog is the References dialog
-	HWND hwListBox = GetDlgItem(hDlg, VBE_REFDLG_LISTBOX);
+	HWND hwListBox = GetDlgItem(hDlg, ID_VBE_REFDLG_LISTBOX);
 	if (hwListBox == NULL) return;
 	RECT rcListBox;
 	if (!GetWindowRect(hwListBox, &rcListBox)) return;
 
 	//add extra width to dialog based on OK button
-	HWND hwOK = GetDlgItem(hDlg, VBE_REFDLG_OKBUTTON);
+	HWND hwOK = GetDlgItem(hDlg, ID_VBE_REFDLG_OKBUTTON);
 	RECT rcOK;
 	if (!GetWindowRect(hwOK, &rcOK)) return;
 	LONG xw = (rcOK.right - rcOK.left)*2;
@@ -478,7 +583,7 @@ void InitReferenceDialog(HWND hDlg)
 	SetWindowPos(hwListBox, NULL, 0, 0, rcListBox.right - rcListBox.left, rcListBox.bottom - rcListBox.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER);
 
 	//widen results group
-	HWND hwResultsGroup = GetDlgItem(hDlg, VBE_REFDLG_RESULTGROUP);
+	HWND hwResultsGroup = GetDlgItem(hDlg, ID_VBE_REFDLG_RESULTGROUP);
 	if (hwResultsGroup == NULL) return;
 	RECT rcResultsGroup;
 	if (!GetWindowRect(hwResultsGroup, &rcResultsGroup)) return;
@@ -489,14 +594,15 @@ void InitReferenceDialog(HWND hDlg)
 //TODO move controls inside Results group control a little to the left?
 
 	//setup path edit box
-	g_hwStatic = GetDlgItem(hDlg, VBE_REFDLG_LOCATIONSTATIC);
-	if (g_hwStatic)
+	HFONT hStaticFont = NULL;
+	g_hwPathStatic = GetDlgItem(hDlg, ID_VBE_REFDLG_LOCATIONSTATIC);
+	if (g_hwPathStatic)
 	{
 		RECT rc;
-		if (!GetWindowRect(g_hwStatic, &rc)) return;
+		if (!GetWindowRect(g_hwPathStatic, &rc)) return;
 		rc.right += xw;
 		if (!ScreenToClientRect(hDlg, &rc)) return;
-		if (!ShowWindow(g_hwStatic, SW_HIDE)) return;//fix redrawing problems
+		if (!ShowWindow(g_hwPathStatic, SW_HIDE)) return;//fix redrawing problems
 
 		//adjust position because of the editbox edge
 		//"This API is not DPI aware, and should not be used if the calling thread is per-monitor DPI aware
@@ -512,31 +618,74 @@ void InitReferenceDialog(HWND hDlg)
 										hDlg, NULL, (HINSTANCE)&__ImageBase, NULL);
 		if (g_hwPathEditBox == NULL) return;
 		//set font, match size
-		HFONT hStaticFont = (HFONT)SendMessage(g_hwStatic, WM_GETFONT, NULL, NULL);
+		hStaticFont = (HFONT)SendMessage(g_hwPathStatic, WM_GETFONT, NULL, NULL);
 		if (hStaticFont) SendMessage(g_hwPathEditBox, WM_SETFONT, (WPARAM)hStaticFont, TRUE);
 
 		//copy text from static to pathbox
-		CopyWindowText(g_hwStatic, g_hwPathEditBox);
+		CopyWindowText(g_hwPathStatic, g_hwPathEditBox);
 		//show path edit box and move to top
 		SetWindowPos(g_hwPathEditBox, HWND_TOP, 0,0,0,0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
 		//subclass static control to catch WM_SETTEXT
-		g_oldStaticProc = (WNDPROC)SetWindowLongPtr(g_hwStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewStaticProc));
-		return;
+		g_oldPathStaticProc = (WNDPROC)SetWindowLongPtr(g_hwPathStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewPathStaticProc));
 	}
+
+	/////////////////////////////////
+	//setup reference search controls
+	if (!ScreenToClientRect(hDlg, &rcOK)) return; //convert only once!!!
+
+//TODO: test button visual look on Win2k
+#ifndef SM_CXFOCUSBORDER
+#define SM_CXFOCUSBORDER 83
+#endif
+	int ctlh = GetSystemMetrics(SM_CYMENU) + GetSystemMetrics(SM_CYEDGE) + GetSystemMetrics(SM_CXFOCUSBORDER);
+
+	LONG ctlmidY = rcOK.top + (rcOK.bottom - rcOK.top)/2;
+
+	RECT rcSearch;
+	rcSearch.left = rcListBox.right - (rcOK.right - rcOK.left)*2;
+	rcSearch.top = ctlmidY - ctlh/2;
+	rcSearch.right = rcListBox.right;
+	rcSearch.bottom = rcSearch.top + ctlh;
+
+	g_hwSearchStatic = CreateWindowEx(WS_EX_CONTROLPARENT | WS_EX_NOPARENTNOTIFY, WC_STATIC, _T("Search references"),
+									WS_CHILD /*| WS_CLIPSIBLINGS*/ | WS_CLIPCHILDREN | WS_VISIBLE,
+									rcSearch.left, rcSearch.top, (rcSearch.right - rcSearch.left), (rcSearch.bottom - rcSearch.top),
+									hDlg, NULL, (HINSTANCE)&__ImageBase, NULL);
+	if (!g_hwSearchStatic) return;
+	//subclass to receive child commands
+	g_oldSearchStaticProc = (WNDPROC)SetWindowLongPtr(g_hwSearchStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewSearchStaticProc));
+	if (!g_oldSearchStaticProc) return;
+
+	g_hwSearchEditBox = CreateWindowEx(WS_EX_CLIENTEDGE | WS_EX_NOPARENTNOTIFY, WC_EDIT, NULL,
+									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL | ES_WANTRETURN,
+									0,0, ((rcSearch.right - rcSearch.left) - ctlh)-1, ctlh,
+									g_hwSearchStatic, (HMENU)ID_REFSEARCH_EDIT, (HINSTANCE)&__ImageBase, NULL);
+	//reuse font
+	if (g_hwSearchEditBox && hStaticFont) SendMessage(g_hwSearchEditBox, WM_SETFONT, (WPARAM)hStaticFont, TRUE);
+	//subclass edit to catch Enter key
+	g_oldSearchEditProc = (WNDPROC)SetWindowLongPtr(g_hwSearchEditBox, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewSearchEditProc));
+	//make nice search button
+	HWND hwSearchButton = CreateWindowEx(WS_EX_NOPARENTNOTIFY, WC_BUTTON, _T("S"),
+									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE /*| WS_TABSTOP*/ | BS_PUSHBUTTON | BS_ICON,
+									((rcSearch.right - rcSearch.left) - ctlh), 0, (rcSearch.bottom - rcSearch.top), (rcSearch.bottom - rcSearch.top),
+									g_hwSearchStatic, (HMENU)ID_REFSEARCH_BUTTON, (HINSTANCE)&__ImageBase, NULL);
+	ctlh = GetSystemMetrics(SM_CXMENUCHECK);//reuse var for clearer syntax
+	HICON btnico = (HICON)LoadImage(GetModuleHandle(_T("shell32.dll")), MAKEINTRESOURCE(23), IMAGE_ICON, ctlh, ctlh, LR_SHARED);
+	if (btnico) SendMessage(hwSearchButton, BM_SETIMAGE, (WPARAM)IMAGE_ICON, (LPARAM)btnico);
 
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DestroyPathBox(HWND hDlg)
 {
-	if (GetParent(g_hwStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
+	if (GetParent(g_hwPathStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
 
 	//unsubclass static
-	if (IsWindow(g_hwStatic))
+	if (IsWindow(g_hwPathStatic))
 	{
-		if (SetWindowLongPtr(g_hwStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldStaticProc)))
+		if (SetWindowLongPtr(g_hwPathStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldPathStaticProc)))
 		{
-			g_hwStatic = NULL;
-			g_oldStaticProc = NULL;
+			g_hwPathStatic = NULL;
+			g_oldPathStaticProc = NULL;
 			DBGTRACE("unsubclass static\n");
 		}
 		else
@@ -549,6 +698,31 @@ void DestroyPathBox(HWND hDlg)
 	{
 		if (DestroyWindow(g_hwPathEditBox)) g_hwPathEditBox = NULL;
 		DBGTRACE("DestroyWindow  g_hwPathEditBox\n");
+	}
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void DestroySearch(HWND hDlg)
+{
+	if (GetParent(g_hwSearchStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
+	//be careful who destroys the controls (parent dialog or us)
+	if (IsWindow(g_hwSearchStatic))
+	{
+		if (SetWindowLongPtr(g_hwSearchStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchStaticProc)))
+		{
+			g_oldSearchStaticProc = NULL;
+			DBGTRACE("unsubclass g_hwSearchParent\n");
+		}
+		else
+		{
+			DBGTRACE("ERROR unsubclass g_hwSearchParent\n");
+		}
+		if (DestroyWindow(g_hwSearchStatic))//child windows will be destroyed here
+		{
+			_ASSERTE(!IsWindow(g_hwSearchEditBox));
+			g_hwSearchEditBox = NULL;
+			g_hwSearchStatic = NULL;
+		}
+		DBGTRACE("DestroyWindow  g_hwSearchStatic\n");
 	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -572,7 +746,7 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 			if (IsWindowClass(hwnd, _T("#32770")))
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  #32770\n");
-				InitReferenceDialog(hwnd);
+				InitReferencesDialog(hwnd);
 			}
 
 		break;
@@ -581,6 +755,7 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 			{
 				DBGTRACE("EVENT_OBJECT_HIDE  #32770\n");
 				DestroyPathBox(hwnd);
+				DestroySearch(hwnd);
 			}
 		break;
 		case EVENT_OBJECT_NAMECHANGE:
@@ -676,7 +851,7 @@ STDAPI Disconnect()
 			DBGTRACE("ERROR unsubclass MDI\n");
 		}
 	}
-
+	
 	//remove event hooks
 	_ASSERTE(g_hEventHook);
 	if (g_hEventHook)
