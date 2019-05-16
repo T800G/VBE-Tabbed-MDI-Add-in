@@ -106,13 +106,13 @@ SIZE sz;
 
 int FindListBoxItem(HWND hwListBox, LPCTSTR pszSubstring, BOOL bWrapAround, BOOL bSetCaretIndex)
 {
-	HANDLE hProcHeap = GetProcessHeap();
-	if (!hProcHeap) return LB_ERR;
-	LPVOID pBuf = HeapAlloc(hProcHeap, HEAP_ZERO_MEMORY, (SIZE_T)(1024*sizeof(TCHAR)));//should be enough
-	if (pBuf == NULL) return LB_ERR;
 	int endItem = ListBox_GetCount(hwListBox);
 	if (LB_ERR == endItem) return LB_ERR;
 	int startItem = ListBox_GetCaretIndex(hwListBox) +1;//start from next after selection
+	HANDLE hProcHeap = GetProcessHeap();
+	if (!hProcHeap) return LB_ERR;
+	LPVOID pBuf = HeapAlloc(hProcHeap, HEAP_ZERO_MEMORY, (SIZE_T)(1024*sizeof(TCHAR)));//should be enough
+	if (NULL == pBuf) return LB_ERR;
 	int retval = LB_ERR;
 LBFIWRAPLOOP:
 	int i;

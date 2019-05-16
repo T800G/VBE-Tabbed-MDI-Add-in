@@ -188,20 +188,20 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 							if (ti.lParam == lParam)
 							{   //get text size and allocate buffer
 								LRESULT lBufLen = SendMessage((HWND)lParam, WM_GETTEXTLENGTH, NULL, NULL) + 1;//terminating null is not counted
-								LPTSTR pszBuf = (LPTSTR)LocalAlloc(LPTR, lBufLen*sizeof(TCHAR));
-								if (pszBuf)
+								HANDLE hProcHeap = GetProcessHeap();
+								if (hProcHeap)
 								{
-									if (SendMessage((HWND)lParam, WM_GETTEXT, lBufLen, (LPARAM)pszBuf) == (lBufLen-1))
+									LPTSTR pszBuf = (LPTSTR)HeapAlloc(hProcHeap, HEAP_ZERO_MEMORY, (SIZE_T)(lBufLen*sizeof(TCHAR)));
+									if (pszBuf)
 									{
-										ti.pszText = pszBuf;
-										ti.mask = TCIF_TEXT;
-										CallWindowProc(g_oldTabProc, hWnd, TCM_SETITEM, idx, (LPARAM)&ti);
+										if (SendMessage((HWND)lParam, WM_GETTEXT, lBufLen, (LPARAM)pszBuf) == (lBufLen-1))
+										{
+											ti.pszText = pszBuf;
+											ti.mask = TCIF_TEXT;
+											CallWindowProc(g_oldTabProc, hWnd, TCM_SETITEM, idx, (LPARAM)&ti);
+										}
+										HeapFree(hProcHeap, NULL, pszBuf);							
 									}
-									LocalFree(pszBuf);								
-								}
-								else
-								{
-									DBGTRACE2("LocalAlloc failed\n");
 								}
 								break;
 							}
@@ -647,7 +647,7 @@ void InitReferencesDialog(HWND hDlg)
 	rcSearch.right = rcListBox.right;
 	rcSearch.bottom = rcSearch.top + ctlh;
 
-	g_hwSearchStatic = CreateWindowEx(WS_EX_CONTROLPARENT | WS_EX_NOPARENTNOTIFY, WC_STATIC, _T("Search references"),
+	g_hwSearchStatic = CreateWindowEx(WS_EX_CONTROLPARENT | WS_EX_NOPARENTNOTIFY, WC_STATIC, NULL,
 									WS_CHILD /*| WS_CLIPSIBLINGS*/ | WS_CLIPCHILDREN | WS_VISIBLE,
 									rcSearch.left, rcSearch.top, (rcSearch.right - rcSearch.left), (rcSearch.bottom - rcSearch.top),
 									hDlg, NULL, (HINSTANCE)&__ImageBase, NULL);
@@ -658,14 +658,14 @@ void InitReferencesDialog(HWND hDlg)
 
 	g_hwSearchEditBox = CreateWindowEx(WS_EX_CLIENTEDGE | WS_EX_NOPARENTNOTIFY, WC_EDIT, NULL,
 									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL | ES_WANTRETURN,
-									0,0, ((rcSearch.right - rcSearch.left) - ctlh)-1, ctlh,
+									0,0, ((rcSearch.right - rcSearch.left) - ctlh), ctlh,
 									g_hwSearchStatic, (HMENU)ID_REFSEARCH_EDIT, (HINSTANCE)&__ImageBase, NULL);
 	//reuse font
 	if (g_hwSearchEditBox && hStaticFont) SendMessage(g_hwSearchEditBox, WM_SETFONT, (WPARAM)hStaticFont, TRUE);
 	//subclass edit to catch Enter key
 	g_oldSearchEditProc = (WNDPROC)SetWindowLongPtr(g_hwSearchEditBox, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewSearchEditProc));
 	//make nice search button
-	HWND hwSearchButton = CreateWindowEx(WS_EX_NOPARENTNOTIFY, WC_BUTTON, _T("S"),
+	HWND hwSearchButton = CreateWindowEx(WS_EX_NOPARENTNOTIFY, WC_BUTTON, NULL,
 									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE /*| WS_TABSTOP*/ | BS_PUSHBUTTON | BS_ICON,
 									((rcSearch.right - rcSearch.left) - ctlh), 0, (rcSearch.bottom - rcSearch.top), (rcSearch.bottom - rcSearch.top),
 									g_hwSearchStatic, (HMENU)ID_REFSEARCH_BUTTON, (HINSTANCE)&__ImageBase, NULL);
