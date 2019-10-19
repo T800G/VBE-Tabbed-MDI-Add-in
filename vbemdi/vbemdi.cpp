@@ -196,11 +196,13 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 									{
 										if (SendMessage((HWND)lParam, WM_GETTEXT, lBufLen, (LPARAM)pszBuf) == (lBufLen-1))
 										{
-											ti.pszText = pszBuf;
+											//fix tab caption "<filetitle> - tab_name (type)" >> "tab_name (type)"
+											ti.pszText = StrRChr(pszBuf, StrRChr(pszBuf, NULL, _T(' ')), _T(' '));
+											if (NULL == ti.pszText) ti.pszText = pszBuf;
 											ti.mask = TCIF_TEXT;
 											CallWindowProc(g_oldTabProc, hWnd, TCM_SETITEM, idx, (LPARAM)&ti);
 										}
-										HeapFree(hProcHeap, NULL, pszBuf);							
+										HeapFree(hProcHeap, NULL, pszBuf);
 									}
 								}
 								break;
