@@ -1,9 +1,55 @@
 #ifndef _HELPERS_9EF22F0D_46AB_423F_BA5A_D1BD482453D1_
 #define _HELPERS_9EF22F0D_46AB_423F_BA5A_D1BD482453D1_
 
+#ifndef _INC_SHLWAPI
 #include <Shlwapi.h>
 #pragma comment(lib,"Shlwapi.lib")
+#endif
 
+/////////////////////////////////////////////////////////////////////////////////
+//fix for Windows 10 IME crash
+typedef HANDLE (WINAPI *pfnImmAssociateContext)(HWND hWnd, HANDLE hIMC);
+HANDLE RemoveIME(HWND hWnd)
+{
+	if (!IsWindow(hWnd)) return NULL;
+
+	HMODULE hImm32 = LoadLibrary(_T("imm32.dll"));
+	if (NULL == hImm32) { DBGTRACE("LoadLibrary imm32.dll failed\n"); return NULL; }
+
+	HANDLE hIME = NULL;
+	pfnImmAssociateContext pfn = (pfnImmAssociateContext) GetProcAddress(hImm32, "ImmAssociateContext");
+	if (pfn)
+	{
+		hIME = pfn(hWnd, NULL);
+		if (hIME) {DBGTRACE("removed IME context 0x%x from 0x%x\n", hIME, hWnd);}
+	}
+	else {DBGTRACE("GetProcAddress(imm32.dll,ImmAssociateContext) failed\n");}
+	FreeLibrary(hImm32);
+return hIME;
+}
+BOOL RestoreIME(HWND hWnd, HANDLE hIMEContext)
+{
+	if (!IsWindow(hWnd)) return FALSE;
+	if (NULL == hIMEContext) return FALSE;
+
+	HMODULE hImm32 = LoadLibrary(_T("imm32.dll"));
+	if (NULL == hImm32) { DBGTRACE("LoadLibrary imm32.dll failed\n"); return FALSE; }
+
+	BOOL bRet = FALSE;
+	HANDLE hIME = NULL;
+	pfnImmAssociateContext pfn = (pfnImmAssociateContext) GetProcAddress(hImm32, "ImmAssociateContext");
+	if (pfn)
+	{
+		hIME = pfn(hWnd, hIMEContext);
+		_ASSERTE(NULL == hIME);
+		DBGTRACE("restored IME context 0x%x to 0x%x\n", hIMEContext, hWnd);
+		bRet = TRUE;
+	}
+	else {DBGTRACE("GetProcAddress(imm32.dll,ImmAssociateContext) failed\n");}
+	FreeLibrary(hImm32);
+return bRet;
+}
+/////////////////////////////////////////////////////////////////////////////////
 BOOL IsWindowCurrentProcessThread(HWND hWnd)
 {
 	DWORD dwpid;
@@ -37,17 +83,17 @@ return retVal;
 BOOL IsWindowClass(HWND hWnd, LPCTSTR pszClsName)
 {
 	TCHAR strBuf[256];
-return ((GetClassName(hWnd, strBuf, 256) && lstrcmp(strBuf, pszClsName)==0));
+return ((GetClassName(hWnd, strBuf, 256) && lstrcmp(strBuf, pszClsName) == 0));
 }
 
 BOOL IsWindowMaximized(HWND hWnd)
 {
-	if (NULL==hWnd) return FALSE;
+	if (NULL == hWnd) return FALSE;
 	WINDOWPLACEMENT wpl;
-	wpl.length=sizeof(WINDOWPLACEMENT);
-	wpl.showCmd=SW_MAX;
+	wpl.length = sizeof(WINDOWPLACEMENT);
+	wpl.showCmd = 0;
 	::GetWindowPlacement(hWnd, &wpl);
-return (SW_SHOWMAXIMIZED==wpl.showCmd);
+return (SW_SHOWMAXIMIZED == wpl.showCmd);
 }
 
 UINT GetChildWindowCount(HWND hWnd, __in_opt LPCTSTR lpszChildClass, __in_opt BOOL bVisibleOnly)

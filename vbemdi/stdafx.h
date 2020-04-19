@@ -45,6 +45,8 @@
 #include <oaidl.h>
 #include <comdef.h>
 #include <tchar.h>
+#include <shlwapi.h>
+#pragma comment(lib,"Shlwapi.lib")
 #include <commctrl.h>
 #pragma comment(lib,"Comctl32.lib")
 

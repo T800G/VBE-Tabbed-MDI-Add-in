@@ -3,6 +3,7 @@
 #include "helpers.h"
 #include "VBEres.h"
 #include "resload.h"
+#include "array.h"
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
@@ -29,10 +30,18 @@ WNDPROC g_oldPathStaticProc;
 
 HWND g_hwSearchStatic;
 HWND g_hwSearchEditBox;
+HANDLE g_hSearchEditIMECtx;
 WNDPROC g_oldSearchStaticProc;
 WNDPROC g_oldSearchEditProc;
-//HWND g_hwSearchButton;
 
+#define APPWNDCLASSNAME  _T("wndclass_desked_gsk")
+//https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants
+const DWORD g_arrWinEvents[]= {
+	EVENT_OBJECT_SHOW,
+	EVENT_OBJECT_HIDE,
+	EVENT_OBJECT_NAMECHANGE,
+	EVENT_SYSTEM_FOREGROUND
+};
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void FixVBMdiChildHack()
 {
@@ -41,17 +50,21 @@ void FixVBMdiChildHack()
 	if (hwhack && IsWindowVisible(hwhack)) ShowWindow(hwhack, SW_HIDE);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+LSTATUS HKCUSetBoolValue(LPCTSTR pszSubKey, LPCTSTR pszValue, BOOL bValue)
+{
+	DWORD d = bValue;
+	HKEY hk = NULL;
+	LSTATUS ls = RegCreateKeyEx(HKEY_CURRENT_USER, pszSubKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hk, NULL);
+	if (ERROR_SUCCESS != ls) return ls;
+	ls = RegSetValueEx(hk, pszValue, 0, REG_DWORD, (BYTE*)&d, sizeof(DWORD));
+return RegCloseKey(hk);
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT idx=-1;
     switch (message)
 	{
-
-//TODO case WM_MOUSEWHEEL:  //scroll tabs with mouse wheel?  <<< need mousehook for this because tabstrip never gets focus!
-		//	DBGTRACE("WM_MOUSEWHEEL\n");
-		//	SendMessage(hWnd, WM_HSCROLL, NULL, ((HIWORD(wParam)<0) ? SB_LINERIGHT : SB_LINELEFT));
-		//return 0;
-
 		case WM_LBUTTONDOWN:
 		case WM_RBUTTONDOWN: //activate tab on right-click to associate context menu with correct tab
 			DBGTRACE("tab activate tab\n"); 
@@ -68,7 +81,6 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				return lret;
 			}
 		break;
-
 		//show context menu
 		case WM_RBUTTONUP:
 			{
@@ -86,10 +98,9 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 						if (!PtInRect(&rc, pt)) return 0;
 					}
 				}
-
-//TODO match VBA IDE language
-//TODO localize menu in more languages
-//TODO needs more testing of localization
+				//TODO match VBA IDE language
+				//TODO localize menu in more languages
+				//TODO needs more testing of localization
 				HMENU hctxmenu = LoadMenuLC((HINSTANCE)&__ImageBase, IDM_TABSTRIP, GetUserDefaultUILanguage());
 				if (hctxmenu == NULL) return 0;
 				HMENU hmenuTrackPopup = GetSubMenu(hctxmenu, 0);
@@ -109,7 +120,6 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				DestroyMenu(hctxmenu);
 			}
 		break;
-
 		//context menu commands
 		case WM_COMMAND:
 			switch (wParam) //HIWORD should be 0 if from menu, so check full dword
@@ -213,7 +223,6 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				break;
 			}
 		break;
-
 		//notifications from MDI subclass proc
 		case WM_MDIACTIVATE:
 			DBGTRACE("tab WM_MDIACTIVATE\n");
@@ -260,7 +269,6 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 			}
 		return FALSE;
 		break;
-
 		//finally
 		case WM_NCDESTROY:
 			DBGTRACE("NewTabstripProc  WM_NCDESTROY\n");
@@ -282,13 +290,12 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		{
 			DBGTRACE("mdi WM_NCCALCSIZE\n");
 			LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
-//TODO hide tabstrip if no child windows
+			//TODO hide tabstrip if no child windows
 			if (wParam) { ((LPNCCALCSIZE_PARAMS)lParam)->rgrc[0].top += (g_tabstripHeight - GetSystemMetrics(SM_CXEDGE)); }
 			else { ((LPRECT)lParam)->top += (g_tabstripHeight - GetSystemMetrics(SM_CXEDGE)); }
 		return lret;
 		}
 		break;
-
 		case WM_WINDOWPOSCHANGED:
 		{
 			DBGTRACE("mdi WM_WINDOWPOSCHANGED\n");
@@ -301,32 +308,17 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			SetWindowPos(g_hwTabStrip, HWND_TOP, rc.left+GetSystemMetrics(SM_CXEDGE), rc.top, (rc.right-rc.left-GetSystemMetrics(SM_CXEDGE)), g_tabstripHeight, SWP_SHOWWINDOW);
 		}
 		break; 
-		
 		case WM_MDIGETACTIVE:
 		{
 			LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
-			//collapsing the project in project treeview pane only hides mdi childs and fires WM_MDIGETACTIVE !!!
-//if (!IsWindowVisible((HWND)lret))
-//{
-//	DBGTRACE("WM_MDIACTIVATE hidden=0x%x\n", lret);
-//	//PostMessage(hWnd, WM_MDIDESTROY, (WPARAM)lret, NULL);//close all mdi childs of collapsed project
-//	//PostMessage(g_hwTabStrip, WM_MDIDESTROY, (WPARAM)lret, NULL);
-//	PostMessage((HWND)lret, WM_SYSCOMMAND, SC_CLOSE, 0);
-//	SendMessage(g_hwTabStrip, WM_MDIDESTROY, wParam, NULL);
-//	//SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)GetActiveMDIChild(g_oldMDIproc, hWnd), NULL);
-//}
-//else
+			if (g_hwLastActiveMDIChild != (HWND)lret)
 			{
-				if (g_hwLastActiveMDIChild != (HWND)lret)
-				{
-					g_hwLastActiveMDIChild = (HWND)lret;
-					SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
-				}
+				g_hwLastActiveMDIChild = (HWND)lret;
+				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)lret, NULL);
 			}
 		return lret;
 		}
 		break;
-			
 		//route MDI messages to tabstrip
 		case WM_MDIACTIVATE:
 			DBGTRACE("mdi WM_MDIACTIVATE\n");
@@ -337,7 +329,6 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			PostMessage(g_hwTabStrip, WM_MDIDESTROY, wParam, NULL);
 			PostMessage(g_hwTabStrip, WM_MDIACTIVATE, (WPARAM)GetActiveMDIChild(g_oldMDIproc, hWnd), NULL);
 		break;
-
 		//tabstrip notifications
 		case TCM_SETCURSEL:
 			DBGTRACE("mdi TCM_SETCURSEL\n");
@@ -355,7 +346,6 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 			}
 			else return FALSE;
 		break;
-
 		//finally
 		case WM_NCDESTROY:
 			DBGTRACE("NewMDIProc  WM_NCDESTROY\n");
@@ -372,11 +362,10 @@ return CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
 void InitTabstrip(HWND hwVBE)
 {
 	if (IsWindow(g_hwMDIwnd)) return;
-	g_hwMDIwnd=FindWindowEx(hwVBE, NULL, L"MDIClient", NULL);
+	g_hwMDIwnd = FindWindowEx(hwVBE, NULL, L"MDIClient", NULL);
 	if (g_hwMDIwnd)
 	{
 		DBGTRACE("g_hwMDIwnd\n");
-
 		//create tabstrip
 		g_hwTabStrip = CreateWindow(WC_TABCONTROL, _T("MDITabStrip"), WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE | TCS_FOCUSNEVER,
 									0, 0, 100, 30, hwVBE, NULL, (HINSTANCE)&__ImageBase, NULL);
@@ -386,10 +375,8 @@ void InitTabstrip(HWND hwVBE)
 		//set tabs font
 		g_hMenuFont=CreateMenuFont();
 		if (g_hMenuFont) SendMessage(g_hwTabStrip, WM_SETFONT, (WPARAM)g_hMenuFont, FALSE);
-
 		//subclass tabstrip
 		g_oldTabProc = (WNDPROC)SetWindowLongPtr(g_hwTabStrip, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewTabstripProc));
-
 		//sync tabstrip items with MDI
 		HWND hwndChildAfter = FindWindowEx(g_hwMDIwnd, NULL, NULL, NULL);
 		int i=0;
@@ -406,7 +393,6 @@ void InitTabstrip(HWND hwVBE)
 			}
 			hwndChildAfter = FindWindowEx(g_hwMDIwnd, hwndChildAfter, NULL, NULL);
 		}
-
 		//setup tabstrip height
 		RECT rc;
 		SetRectEmpty(&rc);
@@ -421,13 +407,11 @@ void InitTabstrip(HWND hwVBE)
 		else TabCtrl_GetItemRect(g_hwTabStrip, 0, &rc);
 
 		g_tabstripHeight = (rc.bottom-rc.top)+2;
-
 		//reposition tabstrip
 		SetRectEmpty(&rc);
 		GetWindowRect(g_hwMDIwnd, &rc);
 		ScreenToClientRect(hwVBE, &rc);
 		SetWindowPos(g_hwTabStrip, HWND_TOP, rc.left+GetSystemMetrics(SM_CXEDGE), rc.top, (rc.right-rc.left-GetSystemMetrics(SM_CXEDGE)), g_tabstripHeight, SWP_SHOWWINDOW);
-
 		//subclass MDI
 		g_oldMDIproc = (WNDPROC)SetWindowLongPtr(g_hwMDIwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewMDIProc));
 		//redraw MDI?
@@ -443,7 +427,7 @@ LRESULT CALLBACK NewPathStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 		case WM_SETTEXT:
 			SetWindowText(g_hwPathEditBox, (LPCTSTR)lParam);
 			//fix listbox redrawing problems
-			RedrawWindow(GetDlgItem(GetParent(hWnd), 5050), NULL,NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+			RedrawWindow(GetDlgItem(GetParent(hWnd), ID_VBE_REFDLG_LISTBOX), NULL,NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 		break;
 		case WM_NCDESTROY:
 			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldPathStaticProc))) g_oldPathStaticProc=NULL;
@@ -517,18 +501,20 @@ LRESULT CALLBACK NewSearchStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 					//break;
 					case ID_REFSEARCH_BUTTON:
 						DBGTRACE("ID_REFSEARCH_BUTTON  wNotifyCode=%s\n", DbgGetButtonControlNotificationCode(HIWORD(wParam)));
-						if (GetWindowText(g_hwSearchEditBox, g_strBuff, 1000))
+						if (GetWindowText(g_hwSearchEditBox, g_strBuff, _countof(g_strBuff)))
 						{
 							HWND hwListBox = GetDlgItem(GetParent(hWnd), ID_VBE_REFDLG_LISTBOX);
 							if (FindListBoxItem(hwListBox, g_strBuff, TRUE, TRUE) != LB_ERR)
 							{
 								RedrawWindow(hwListBox, NULL, NULL, RDW_ERASE|RDW_INVALIDATE|RDW_ERASENOW|RDW_UPDATENOW);//fix redraw problem
 								//notify parent dialog to update reference path
-								SendMessage(GetParent(hwListBox), WM_COMMAND, MAKEWPARAM(ID_VBE_REFDLG_LISTBOX, LBN_SELCHANGE), (LPARAM)hwListBox);
+								//SendMessage
+								PostMessage(GetParent(hwListBox), WM_COMMAND, MAKEWPARAM(ID_VBE_REFDLG_LISTBOX, LBN_SELCHANGE), (LPARAM)hwListBox);
 							}
 						}
 					break;
 				}
+				return 0;//don't pass to defwindowproc
 			}
 		break;
 		case WM_NCDESTROY:
@@ -545,13 +531,11 @@ return CallWindowProc(g_oldSearchStaticProc, hWnd, message, wParam, lParam);
 void InitReferencesDialog(HWND hDlg)
 {
 	if (IsWindow(g_hwPathEditBox)) return;
-	
 	//check if dialog is the References dialog
 	HWND hwListBox = GetDlgItem(hDlg, ID_VBE_REFDLG_LISTBOX);
 	if (hwListBox == NULL) return;
 	RECT rcListBox;
 	if (!GetWindowRect(hwListBox, &rcListBox)) return;
-
 	//add extra width to dialog based on OK button
 	HWND hwOK = GetDlgItem(hDlg, ID_VBE_REFDLG_OKBUTTON);
 	RECT rcOK;
@@ -561,7 +545,6 @@ void InitReferencesDialog(HWND hDlg)
 	if (!GetWindowRect(hDlg, &rcDlg)) return;
 	rcDlg.right += xw;
 	if (!SetWindowPos(hDlg, NULL, 0,0, rcDlg.right - rcDlg.left, rcDlg.bottom - rcDlg.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER)) return;
-
 	//move controls to the right of listbox
 	HWND hwCtrl = FindWindowEx(hDlg, NULL, NULL, NULL);
 	while (hwCtrl)
@@ -578,12 +561,10 @@ void InitReferencesDialog(HWND hDlg)
 		}
 		hwCtrl = FindWindowEx(hDlg, hwCtrl, NULL, NULL);
 	}
-
 	//widen listbox
 	rcListBox.right += xw;
 	if (!ScreenToClientRect(hDlg, &rcListBox)) return;
 	SetWindowPos(hwListBox, NULL, 0, 0, rcListBox.right - rcListBox.left, rcListBox.bottom - rcListBox.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER);
-
 	//widen results group
 	HWND hwResultsGroup = GetDlgItem(hDlg, ID_VBE_REFDLG_RESULTGROUP);
 	if (hwResultsGroup == NULL) return;
@@ -592,9 +573,7 @@ void InitReferencesDialog(HWND hDlg)
 	rcResultsGroup.right += xw;
 	if (!ScreenToClientRect(hDlg, &rcResultsGroup)) return;
 	SetWindowPos(hwResultsGroup, NULL, 0,0, rcResultsGroup.right - rcResultsGroup.left, rcResultsGroup.bottom - rcResultsGroup.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOOWNERZORDER);
-
-//TODO move controls inside Results group control a little to the left?
-
+	//TODO move controls inside Results group control a little to the left?
 	//setup path edit box
 	HFONT hStaticFont = NULL;
 	g_hwPathStatic = GetDlgItem(hDlg, ID_VBE_REFDLG_LOCATIONSTATIC);
@@ -605,14 +584,12 @@ void InitReferencesDialog(HWND hDlg)
 		rc.right += xw;
 		if (!ScreenToClientRect(hDlg, &rc)) return;
 		if (!ShowWindow(g_hwPathStatic, SW_HIDE)) return;//fix redrawing problems
-
 		//adjust position because of the editbox edge
 		//"This API is not DPI aware, and should not be used if the calling thread is per-monitor DPI aware
 		//For the DPI-aware version of this API, see AdjustWindowsRectExForDPI" (https://msdn.microsoft.com/en-us/library/windows/desktop/mt748618(v=vs.85).aspx)
 		//using WS_EX_CLIENTEDGE gives slightly bigger rect than WS_EX_STATICEDGE
 		AdjustWindowRectEx(&rc, WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE | ES_LEFT | ES_READONLY | ES_AUTOHSCROLL,
 							FALSE, WS_EX_CLIENTEDGE | WS_EX_NOPARENTNOTIFY);
-
 		//create editbox in place of static control
 		g_hwPathEditBox = CreateWindowEx(WS_EX_STATICEDGE | WS_EX_NOPARENTNOTIFY, WC_EDIT, NULL,
 										WS_CHILD | WS_CLIPSIBLINGS | ES_LEFT | ES_READONLY | ES_AUTOHSCROLL,
@@ -622,7 +599,6 @@ void InitReferencesDialog(HWND hDlg)
 		//set font, match size
 		hStaticFont = (HFONT)SendMessage(g_hwPathStatic, WM_GETFONT, NULL, NULL);
 		if (hStaticFont) SendMessage(g_hwPathEditBox, WM_SETFONT, (WPARAM)hStaticFont, TRUE);
-
 		//copy text from static to pathbox
 		CopyWindowText(g_hwPathStatic, g_hwPathEditBox);
 		//show path edit box and move to top
@@ -630,15 +606,13 @@ void InitReferencesDialog(HWND hDlg)
 		//subclass static control to catch WM_SETTEXT
 		g_oldPathStaticProc = (WNDPROC)SetWindowLongPtr(g_hwPathStatic, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewPathStaticProc));
 	}
-
 	/////////////////////////////////
 	//setup reference search controls
 	if (!ScreenToClientRect(hDlg, &rcOK)) return; //convert only once!!!
-
-//TODO: test button visual look on Win2k
-#ifndef SM_CXFOCUSBORDER
-#define SM_CXFOCUSBORDER 83
-#endif
+	//TODO: test button visual look on Win2k
+	#ifndef SM_CXFOCUSBORDER
+	#define SM_CXFOCUSBORDER 83
+	#endif
 	int ctlh = GetSystemMetrics(SM_CYMENU) + GetSystemMetrics(SM_CYEDGE) + GetSystemMetrics(SM_CXFOCUSBORDER);
 
 	LONG ctlmidY = rcOK.top + (rcOK.bottom - rcOK.top)/2;
@@ -662,6 +636,10 @@ void InitReferencesDialog(HWND hDlg)
 									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL | ES_WANTRETURN,
 									0,0, ((rcSearch.right - rcSearch.left) - ctlh), ctlh,
 									g_hwSearchStatic, (HMENU)ID_REFSEARCH_EDIT, (HINSTANCE)&__ImageBase, NULL);
+
+	//IMPORTANT - fix Windows 10 crash caused by IME
+	if (g_hwSearchEditBox) { g_hSearchEditIMECtx = RemoveIME(g_hwSearchEditBox); }
+
 	//reuse font
 	if (g_hwSearchEditBox && hStaticFont) SendMessage(g_hwSearchEditBox, WM_SETFONT, (WPARAM)hStaticFont, TRUE);
 	//subclass edit to catch Enter key
@@ -674,13 +652,11 @@ void InitReferencesDialog(HWND hDlg)
 	ctlh = GetSystemMetrics(SM_CXMENUCHECK);//reuse var for clearer syntax
 	HICON btnico = (HICON)LoadImage(GetModuleHandle(_T("shell32.dll")), MAKEINTRESOURCE(23), IMAGE_ICON, ctlh, ctlh, LR_SHARED);
 	if (btnico) SendMessage(hwSearchButton, BM_SETIMAGE, (WPARAM)IMAGE_ICON, (LPARAM)btnico);
-
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DestroyPathBox(HWND hDlg)
 {
 	if (GetParent(g_hwPathStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
-
 	//unsubclass static
 	if (IsWindow(g_hwPathStatic))
 	{
@@ -718,6 +694,10 @@ void DestroySearch(HWND hDlg)
 		{
 			DBGTRACE("ERROR unsubclass g_hwSearchParent\n");
 		}
+
+		//restore IME context for cleanup
+		RestoreIME(g_hwSearchEditBox, g_hSearchEditIMECtx);
+
 		if (DestroyWindow(g_hwSearchStatic))//child windows will be destroyed here
 		{
 			_ASSERTE(!IsWindow(g_hwSearchEditBox));
@@ -736,21 +716,23 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 	UNREFERENCED_PARAMETER(dwmsEventTime);
 
 	if ((idObject == OBJID_WINDOW) && (idChild == CHILDID_SELF))
+	{
 		switch (dwEvent)
 		{
-		case EVENT_OBJECT_SHOW:
-			if (IsWindowClass(hwnd, _T("wndclass_desked_gsk")))
+		case EVENT_OBJECT_SHOW: //received on VBE creation (firs time) and subsequent show
+			if (IsWindowClass(hwnd, APPWNDCLASSNAME))
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
 				InitTabstrip(hwnd);
+				//fix VBE window opening not maximized
+				if (SHRegGetBoolUSValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), FALSE, FALSE))
+					PostMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, NULL);
 			}
-
 			if (IsWindowClass(hwnd, _T("#32770")))
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  #32770\n");
 				InitReferencesDialog(hwnd);
 			}
-
 		break;
 		case EVENT_OBJECT_HIDE:  //dialog is hidden before it is destroyed
 			if (IsWindowClass(hwnd, _T("#32770")))
@@ -759,15 +741,21 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 				DestroyPathBox(hwnd);
 				DestroySearch(hwnd);
 			}
+			//fix VBE window opening not maximized when closed in maximized state
+			if (IsWindowClass(hwnd, APPWNDCLASSNAME))
+			{
+				DBGTRACE("EVENT_OBJECT_HIDE  wndclass_desked_gsk\n");
+				HKCUSetBoolValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), IsWindowMaximized(hwnd));
+			}
 		break;
-		case EVENT_OBJECT_NAMECHANGE:
+		case EVENT_OBJECT_NAMECHANGE: //module, class or userform has been renamed
 			if (g_hwMDIwnd && (GetParent(hwnd)==g_hwMDIwnd)) //faster than checking window class name (VbaWindow)
 			{
 				if (g_hwTabStrip) SendMessage(g_hwTabStrip, WM_COMMAND, (WPARAM)IDC_MDIUPDATECHILDCAPTION, (LPARAM)hwnd);
 			}
 		break;
 		}
-
+	}
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 STDAPI Connect(IDispatch *pApplication)
@@ -775,6 +763,7 @@ STDAPI Connect(IDispatch *pApplication)
 	if (NULL==pApplication) return E_INVALIDARG;
 	HRESULT hr=S_OK;
 
+	_ASSERTE(NULL==g_hSearchEditIMECtx);
 	_ASSERTE(NULL==g_hwLastActiveMDIChild);
 
 	INITCOMMONCONTROLSEX iccex;
@@ -796,7 +785,7 @@ STDAPI Connect(IDispatch *pApplication)
 	{
 		if (NULL==g_hEventHook)
 		{
-			g_hEventHook = SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_NAMECHANGE, (HINSTANCE)&__ImageBase,
+			g_hEventHook = SetWinEventHook(GetArrayMin(g_arrWinEvents), GetArrayMax(g_arrWinEvents), (HINSTANCE)&__ImageBase,
 											WinEventProcCallback, GetCurrentProcessId(), 0, WINEVENT_INCONTEXT);
 			if (g_hEventHook)
 			{
@@ -823,6 +812,11 @@ return hr;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 STDAPI Disconnect()
 {
+	//EVENT_OBJECT_HIDE if not received when Excel is closed while VBE is opened
+	//fix VBE window opening not maximized when closed in maximized state
+	_ASSERTE(IsWindow(g_hwMDIwnd));
+	HKCUSetBoolValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), IsWindowMaximized(GetParent(g_hwMDIwnd)));
+
 	//unsublcass and destroy tabstrip
 	if (g_oldTabProc)
 	{

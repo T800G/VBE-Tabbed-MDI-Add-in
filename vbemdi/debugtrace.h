@@ -66,7 +66,7 @@ char* DbgGetWindowsMessageNameA(UINT message)
 		case 0x1D: return "WM_FONTCHANGE";
 		case 0x1E: return "WM_TIMECHANGE";
 		case 0x1F: return "WM_CANCELMODE";
-		case 0x20: return "WM_SETCURSOR";
+		//case 0x20: return "WM_SETCURSOR";
 		case 0x21: return "WM_MOUSEACTIVATE";
 		case 0x22: return "WM_CHILDACTIVATE";
 		case 0x23: return "WM_QUEUESYNC";
@@ -108,7 +108,7 @@ char* DbgGetWindowsMessageNameA(UINT message)
 		case 0x81: return "WM_NCCREATE";
 		case 0x82: return "WM_NCDESTROY";
 		case 0x83: return "WM_NCCALCSIZE";
-		case 0x84: return "WM_NCHITTEST";
+		//case 0x84: return "WM_NCHITTEST";
 		case 0x85: return "WM_NCPAINT";
 		case 0x86: return "WM_NCACTIVATE";
 		case 0x87: return "WM_GETDLGCODE";
@@ -155,7 +155,7 @@ char* DbgGetWindowsMessageNameA(UINT message)
 		case 0x137: return "WM_CTLCOLORSCROLLBAR";
 		case 0x138: return "WM_CTLCOLORSTATIC";
 		//case 0x200: return "WM_MOUSEFIRST";
-		case 0x200: return "WM_MOUSEMOVE";
+		//case 0x200: return "WM_MOUSEMOVE";
 		case 0x201: return "WM_LBUTTONDOWN";
 		case 0x202: return "WM_LBUTTONUP";
 		case 0x203: return "WM_LBUTTONDBLCLK";
@@ -242,6 +242,9 @@ char* DbgGetWindowsMessageNameA(UINT message)
 		//case 0x3E8: return "WM_DDE_LAST";
 		case 0x400: return "WM_USER";
 		case 0x8000: return "WM_APP";
+#ifndef WM_INPUT
+		case 0x00FF: return "WM_INPUT";
+#endif
 		default: return "unknown message";
 	}
 //	return "unknown message";
