@@ -49,6 +49,16 @@ BOOL RestoreIME(HWND hWnd, HANDLE hIMEContext)
 	FreeLibrary(hImm32);
 return bRet;
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+LSTATUS HKCUSetBoolValue(LPCTSTR pszSubKey, LPCTSTR pszValue, BOOL bValue)
+{
+	DWORD d = bValue;
+	HKEY hk = NULL;
+	LSTATUS ls = RegCreateKeyEx(HKEY_CURRENT_USER, pszSubKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hk, NULL);
+	if (ERROR_SUCCESS != ls) return ls;
+	ls = RegSetValueEx(hk, pszValue, 0, REG_DWORD, (BYTE*)&d, sizeof(DWORD));
+return RegCloseKey(hk);
+}
 /////////////////////////////////////////////////////////////////////////////////
 BOOL IsWindowCurrentProcessThread(HWND hWnd)
 {

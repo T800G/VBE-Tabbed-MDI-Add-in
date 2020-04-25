@@ -50,16 +50,6 @@ void FixVBMdiChildHack()
 	if (hwhack && IsWindowVisible(hwhack)) ShowWindow(hwhack, SW_HIDE);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-LSTATUS HKCUSetBoolValue(LPCTSTR pszSubKey, LPCTSTR pszValue, BOOL bValue)
-{
-	DWORD d = bValue;
-	HKEY hk = NULL;
-	LSTATUS ls = RegCreateKeyEx(HKEY_CURRENT_USER, pszSubKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hk, NULL);
-	if (ERROR_SUCCESS != ls) return ls;
-	ls = RegSetValueEx(hk, pszValue, 0, REG_DWORD, (BYTE*)&d, sizeof(DWORD));
-return RegCloseKey(hk);
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT idx=-1;
@@ -681,7 +671,7 @@ void DestroyPathBox(HWND hDlg)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DestroySearch(HWND hDlg)
 {
-	if (GetParent(g_hwSearchStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
+	if (GetParent(g_hwSearchStatic) != hDlg) return;//all other dialogs also trigger EVENT_OBJECT_HIDE
 	//be careful who destroys the controls (parent dialog or us)
 	if (IsWindow(g_hwSearchStatic))
 	{
@@ -719,13 +709,13 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 	{
 		switch (dwEvent)
 		{
-		case EVENT_OBJECT_SHOW: //received on VBE creation (firs time) and subsequent show
+		case EVENT_OBJECT_SHOW: //received multiple times - first time on VBE creation and subsequently on show wnd
 			if (IsWindowClass(hwnd, APPWNDCLASSNAME))
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
 				InitTabstrip(hwnd);
 				//fix VBE window opening not maximized
-				if (SHRegGetBoolUSValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), FALSE, FALSE))
+				if (IsWindowVisible(hwnd) && SHRegGetBoolUSValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), FALSE, FALSE))
 					PostMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, NULL);
 			}
 			if (IsWindowClass(hwnd, _T("#32770")))
