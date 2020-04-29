@@ -108,7 +108,7 @@ return (SW_SHOWMAXIMIZED == wpl.showCmd);
 
 UINT GetChildWindowCount(HWND hWnd, __in_opt LPCTSTR lpszChildClass, __in_opt BOOL bVisibleOnly)
 {
-	UINT c=0;
+	UINT c = 0;
 	HWND hwch = FindWindowEx(hWnd, NULL, lpszChildClass, NULL);
 	while (hwch)
 	{

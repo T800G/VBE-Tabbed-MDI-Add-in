@@ -13,6 +13,7 @@ IDispatch* g_pApplication;
 TCHAR g_strBuff[MAX_WNDCLASSNAME];
 
 HWINEVENTHOOK g_hEventHook;
+BOOL g_bVBEopen;
 
 HWND g_hwMDIwnd;
 HWND g_hwLastActiveMDIChild;
@@ -52,7 +53,7 @@ void FixVBMdiChildHack()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	LRESULT idx=-1;
+	LRESULT idx = -1;
     switch (message)
 	{
 		case WM_LBUTTONDOWN:
@@ -64,7 +65,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				{
 					TCITEM ti;
 					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_PARAM;
+					ti.mask = TCIF_PARAM;
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 						SendMessage(g_hwMDIwnd, TCM_SETCURSEL, (WPARAM)ti.lParam, NULL);	
 				}
@@ -81,7 +82,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				//don't show menu if mouse button is not released on the active tab (to which menu belongs)
 				RECT rc;
 				SetRectEmpty(&rc);
-				if ((idx=CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
+				if ((idx = CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
 				{
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMRECT, idx, (LPARAM)&rc))
 					{
@@ -116,11 +117,11 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 			{
 			case IDC_MDICLOSE:
 				DBGTRACE("IDC_MDICLOSE\n");
-				if ((idx=CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
+				if ((idx = CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
 				{
 					TCITEM ti;
 					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_PARAM;
+					ti.mask = TCIF_PARAM;
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 					{
 						if (SendMessage(g_hwMDIwnd, TCM_DELETEITEM, (WPARAM)ti.lParam, NULL))
@@ -133,10 +134,10 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				DBGTRACE("IDC_MDICLOSE OTHERS\n");
 				{
 					TCITEM ti;
-					if ((idx=CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
+					if ((idx = CallWindowProc(g_oldTabProc, hWnd, TCM_GETCURSEL, NULL, NULL))> -1)
 					{
 						SecureZeroMemory(&ti, sizeof(TCITEM));
-						ti.mask=TCIF_PARAM;
+						ti.mask = TCIF_PARAM;
 						if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 						{
 							LPARAM hwtab = ti.lParam;
@@ -144,7 +145,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 							for (idx = (tabcount-1); idx >= 0; idx--)
 							{
 								SecureZeroMemory(&ti, sizeof(TCITEM));
-								ti.mask=TCIF_PARAM;
+								ti.mask = TCIF_PARAM;
 
 								if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti) && (hwtab != ti.lParam))
 								{
@@ -165,7 +166,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 					for (idx = (tabcount-1); idx >= 0; idx--)
 					{
 						SecureZeroMemory(&ti, sizeof(TCITEM));
-						ti.mask=TCIF_PARAM;
+						ti.mask = TCIF_PARAM;
 						if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 						{
 							if (SendMessage(g_hwMDIwnd, TCM_DELETEITEM, (WPARAM)ti.lParam, NULL))
@@ -182,7 +183,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 					for (idx = (tabcount-1); idx >= 0; idx--)
 					{
 						SecureZeroMemory(&ti, sizeof(TCITEM));
-						ti.mask=TCIF_PARAM;
+						ti.mask = TCIF_PARAM;
 						if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 						{
 							if (ti.lParam == lParam)
@@ -217,12 +218,12 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 		case WM_MDIACTIVATE:
 			DBGTRACE("tab WM_MDIACTIVATE\n");
 			{
-				LRESULT tabcount=CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
+				LRESULT tabcount = CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
 				TCITEM ti;
-				for (idx=0; idx < tabcount; idx++)
+				for (idx = 0; idx < tabcount; idx++)
 				{
 					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_PARAM;
+					ti.mask = TCIF_PARAM;
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 					{
 						if (ti.lParam == (LPARAM)wParam) return CallWindowProc(g_oldTabProc, hWnd, TCM_SETCURSEL, idx, 0);//already exists
@@ -232,9 +233,9 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				if (GetWindowText((HWND)wParam, g_strBuff, MAX_WNDCLASSNAME))
 				{
 					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_TEXT | TCIF_PARAM;
-					ti.lParam=(LPARAM)wParam;
-					ti.pszText=g_strBuff;
+					ti.mask = TCIF_TEXT | TCIF_PARAM;
+					ti.lParam = (LPARAM)wParam;
+					ti.pszText = g_strBuff;
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_INSERTITEM, idx, (LPARAM)&ti)>-1)
 						return CallWindowProc(g_oldTabProc, hWnd, TCM_SETCURSEL, idx, 0);
 				}
@@ -245,12 +246,12 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 			DBGTRACE("tab WM_MDIDESTROY\n");
 			{
 				//maybe Close All was called (mdi child destroy order?)
-				LRESULT i=CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
+				LRESULT i = CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEMCOUNT, 0, 0);
 				TCITEM ti;
-				for (idx=0; idx < i; idx++)
+				for (idx = 0; idx < i; idx++)
 				{
 					SecureZeroMemory(&ti, sizeof(TCITEM));
-					ti.mask=TCIF_PARAM;
+					ti.mask = TCIF_PARAM;
 					if (CallWindowProc(g_oldTabProc, hWnd, TCM_GETITEM, idx, (LPARAM)&ti))
 					{
 						if (ti.lParam == (LPARAM)wParam) return CallWindowProc(g_oldTabProc, hWnd, TCM_DELETEITEM, idx, 0);
@@ -322,14 +323,14 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		//tabstrip notifications
 		case TCM_SETCURSEL:
 			DBGTRACE("mdi TCM_SETCURSEL\n");
-			if (0==CallWindowProc(g_oldMDIproc, hWnd, WM_MDIACTIVATE, wParam, NULL)) return TRUE;
+			if (0 == CallWindowProc(g_oldMDIproc, hWnd, WM_MDIACTIVATE, wParam, NULL)) return TRUE;
 			else return FALSE;
 		break;
 		case TCM_DELETEITEM:
 			DBGTRACE("mdi TCM_DELETEITEM\n");
 			//simulate closing the mdi child from it's system menu
 			//this also works for browser object window which is actually hosted in DockingView mdi child
-			if (0==SendMessage((HWND)wParam, WM_SYSCOMMAND, SC_CLOSE, NULL))
+			if (0 == SendMessage((HWND)wParam, WM_SYSCOMMAND, SC_CLOSE, NULL))
 			{
 				SendMessage(g_hwTabStrip, WM_MDIACTIVATE, CallWindowProc(g_oldMDIproc, hWnd, WM_MDIGETACTIVE, NULL, NULL), NULL);
 				return TRUE;
@@ -363,22 +364,22 @@ void InitTabstrip(HWND hwVBE)
 		if (NULL == g_hwTabStrip) return;
 		DBGTRACE("g_hwTabStrip\n");
 		//set tabs font
-		g_hMenuFont=CreateMenuFont();
+		g_hMenuFont = CreateMenuFont();
 		if (g_hMenuFont) SendMessage(g_hwTabStrip, WM_SETFONT, (WPARAM)g_hMenuFont, FALSE);
 		//subclass tabstrip
 		g_oldTabProc = (WNDPROC)SetWindowLongPtr(g_hwTabStrip, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(NewTabstripProc));
 		//sync tabstrip items with MDI
 		HWND hwndChildAfter = FindWindowEx(g_hwMDIwnd, NULL, NULL, NULL);
-		int i=0;
+		int i = 0;
 		while (hwndChildAfter)
 		{
 			if (GetWindowText(hwndChildAfter, g_strBuff, MAX_WNDCLASSNAME))
 			{
 				TCITEM ti;
 				SecureZeroMemory(&ti, sizeof(TCITEM));
-				ti.mask=TCIF_TEXT | TCIF_PARAM;
-				ti.lParam=(LPARAM)hwndChildAfter;
-				ti.pszText=g_strBuff;
+				ti.mask = TCIF_TEXT | TCIF_PARAM;
+				ti.lParam = (LPARAM)hwndChildAfter;
+				ti.pszText = g_strBuff;
 				TabCtrl_InsertItem(g_hwTabStrip, i++, &ti);
 			}
 			hwndChildAfter = FindWindowEx(g_hwMDIwnd, hwndChildAfter, NULL, NULL);
@@ -386,7 +387,7 @@ void InitTabstrip(HWND hwVBE)
 		//setup tabstrip height
 		RECT rc;
 		SetRectEmpty(&rc);
-		if (TabCtrl_GetItemCount(g_hwTabStrip)==0)
+		if (TabCtrl_GetItemCount(g_hwTabStrip) == 0)
 		{
 			TCITEM ti;//insert dummy item to get correct tab height
 			SecureZeroMemory(&ti, sizeof(TCITEM));
@@ -420,7 +421,7 @@ LRESULT CALLBACK NewPathStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			RedrawWindow(GetDlgItem(GetParent(hWnd), ID_VBE_REFDLG_LISTBOX), NULL,NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW | RDW_ALLCHILDREN);
 		break;
 		case WM_NCDESTROY:
-			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldPathStaticProc))) g_oldPathStaticProc=NULL;
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldPathStaticProc))) g_oldPathStaticProc = NULL;
 			else
 			{
 				DBGTRACE2("ERROR unsubclass MDI\n");
@@ -449,7 +450,7 @@ LRESULT CALLBACK NewSearchEditProc(HWND hWnd, WORD message, WORD wParam, LONG lP
 			switch (wParam)
 			{
 				case VK_TAB:
-					PostMessage (GetParent(g_hwSearchStatic), WM_NEXTDLGCTL, 0, 0L);//must post directly to dialog, not parent static
+					PostMessage(GetParent(g_hwSearchStatic), WM_NEXTDLGCTL, 0, 0L);//must post directly to dialog, not parent static
 					return 0;
 				case VK_RETURN://pretend that search button is clicked
 					PostMessage(g_hwSearchStatic, WM_COMMAND, MAKEWPARAM(ID_REFSEARCH_BUTTON, BN_CLICKED), (LPARAM)hWnd);//pass hwnd as LPARAM
@@ -459,7 +460,7 @@ LRESULT CALLBACK NewSearchEditProc(HWND hWnd, WORD message, WORD wParam, LONG lP
 		break;
 		case WM_NCDESTROY:
 			DBGTRACE2("SearchEdit  WM_NCDESTROY\n");
-			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchEditProc))) g_oldSearchEditProc=NULL;
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchEditProc))) g_oldSearchEditProc = NULL;
 			else
 			{
 				DBGTRACE2("ERROR unsubclass search\n");
@@ -508,7 +509,7 @@ LRESULT CALLBACK NewSearchStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 			}
 		break;
 		case WM_NCDESTROY:
-			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchStaticProc))) g_oldSearchStaticProc=NULL;
+			if (SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(g_oldSearchStaticProc))) g_oldSearchStaticProc = NULL;
 			else
 			{
 				DBGTRACE2("ERROR unsubclass search\n");
@@ -639,14 +640,14 @@ void InitReferencesDialog(HWND hDlg)
 									WS_CHILD | WS_CLIPSIBLINGS | WS_VISIBLE /*| WS_TABSTOP*/ | BS_PUSHBUTTON | BS_ICON,
 									((rcSearch.right - rcSearch.left) - ctlh), 0, (rcSearch.bottom - rcSearch.top), (rcSearch.bottom - rcSearch.top),
 									g_hwSearchStatic, (HMENU)ID_REFSEARCH_BUTTON, (HINSTANCE)&__ImageBase, NULL);
-	ctlh = GetSystemMetrics(SM_CXMENUCHECK);//reuse var for clearer syntax
+	ctlh = GetSystemMetrics(SM_CXMENUCHECK); //reuse var for more clear syntax
 	HICON btnico = (HICON)LoadImage(GetModuleHandle(_T("shell32.dll")), MAKEINTRESOURCE(23), IMAGE_ICON, ctlh, ctlh, LR_SHARED);
 	if (btnico) SendMessage(hwSearchButton, BM_SETIMAGE, (WPARAM)IMAGE_ICON, (LPARAM)btnico);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void DestroyPathBox(HWND hDlg)
 {
-	if (GetParent(g_hwPathStatic) != hDlg) return;//'Browse...' file dialog also triggers EVENT_OBJECT_HIDE
+	if (GetParent(g_hwPathStatic) != hDlg) return; //any dialog triggers EVENT_OBJECT_HIDE
 	//unsubclass static
 	if (IsWindow(g_hwPathStatic))
 	{
@@ -714,9 +715,6 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
 				InitTabstrip(hwnd);
-				//fix VBE window opening not maximized
-				if (IsWindowVisible(hwnd) && SHRegGetBoolUSValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), FALSE, FALSE))
-					PostMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, NULL);
 			}
 			if (IsWindowClass(hwnd, _T("#32770")))
 			{
@@ -724,22 +722,33 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 				InitReferencesDialog(hwnd);
 			}
 		break;
-		case EVENT_OBJECT_HIDE:  //dialog is hidden before it is destroyed
+		case EVENT_SYSTEM_FOREGROUND:
+			if (!g_bVBEopen && IsWindowClass(hwnd, APPWNDCLASSNAME))
+			{
+				DBGTRACE("EVENT_SYSTEM_FOREGROUND  wndclass_desked_gsk\n");
+				g_bVBEopen = TRUE;
+				//fix VBE window opening not maximized when closed in maximized state
+				if (SHRegGetBoolUSValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), FALSE, FALSE))
+					PostMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, NULL);
+			}
+		break;
+		case EVENT_OBJECT_HIDE: //dialog is hidden before it is destroyed
 			if (IsWindowClass(hwnd, _T("#32770")))
 			{
 				DBGTRACE("EVENT_OBJECT_HIDE  #32770\n");
 				DestroyPathBox(hwnd);
 				DestroySearch(hwnd);
 			}
-			//fix VBE window opening not maximized when closed in maximized state
+			//VBE window is hidden when closed (EVENT_OBJECT_HIDE if not received) and destroyed when host app is closed
 			if (IsWindowClass(hwnd, APPWNDCLASSNAME))
 			{
 				DBGTRACE("EVENT_OBJECT_HIDE  wndclass_desked_gsk\n");
+				//fix VBE window opening not maximized when closed in maximized state
 				HKCUSetBoolValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), IsWindowMaximized(hwnd));
 			}
 		break;
 		case EVENT_OBJECT_NAMECHANGE: //module, class or userform has been renamed
-			if (g_hwMDIwnd && (GetParent(hwnd)==g_hwMDIwnd)) //faster than checking window class name (VbaWindow)
+			if (g_hwMDIwnd && (GetParent(hwnd) == g_hwMDIwnd)) //faster than checking window class name (VbaWindow)
 			{
 				if (g_hwTabStrip) SendMessage(g_hwTabStrip, WM_COMMAND, (WPARAM)IDC_MDIUPDATECHILDCAPTION, (LPARAM)hwnd);
 			}
@@ -750,30 +759,32 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 STDAPI Connect(IDispatch *pApplication)
 {
-	if (NULL==pApplication) return E_INVALIDARG;
+	if (NULL == pApplication) return E_INVALIDARG;
 	HRESULT hr=S_OK;
 
-	_ASSERTE(NULL==g_hSearchEditIMECtx);
-	_ASSERTE(NULL==g_hwLastActiveMDIChild);
+	_ASSERTE(NULL == g_hSearchEditIMECtx);
+	_ASSERTE(NULL == g_hwLastActiveMDIChild);
+	_ASSERTE(FALSE == g_bVBEopen);
+	g_bVBEopen = FALSE;
 
 	INITCOMMONCONTROLSEX iccex;
-	iccex.dwSize=sizeof(INITCOMMONCONTROLSEX);
-	iccex.dwICC=ICC_TAB_CLASSES;
+	iccex.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	iccex.dwICC = ICC_TAB_CLASSES;
 	if (!InitCommonControlsEx(&iccex)) return E_FAIL;
 
-	_ASSERTE(NULL==g_pApplication);
-	if (NULL==g_pApplication)
+	_ASSERTE(NULL == g_pApplication);
+	if (NULL == g_pApplication)
 	{
 		g_pApplication = pApplication;
 		g_pApplication->AddRef();
 		DBGTRACE("vbemdi::Connect\n");
 	}
-	else hr=ERROR_ALREADY_ASSIGNED;
+	else hr = ERROR_ALREADY_ASSIGNED;
 
-	_ASSERTE(NULL==g_hEventHook);
+	_ASSERTE(NULL == g_hEventHook);
 	if SUCCEEDED(hr)
 	{
-		if (NULL==g_hEventHook)
+		if (NULL == g_hEventHook)
 		{
 			g_hEventHook = SetWinEventHook(GetArrayMin(g_arrWinEvents), GetArrayMax(g_arrWinEvents), (HINSTANCE)&__ImageBase,
 											WinEventProcCallback, GetCurrentProcessId(), 0, WINEVENT_INCONTEXT);
@@ -795,17 +806,22 @@ STDAPI Connect(IDispatch *pApplication)
 				}
 			}
 		}
-		else {hr=ERROR_ALREADY_EXISTS; DBGTRACE("ERROR_ALREADY_EXISTS\n");}
+		else { hr = ERROR_ALREADY_EXISTS; DBGTRACE("ERROR_ALREADY_EXISTS\n"); }
 	}
 return hr;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 STDAPI Disconnect()
 {
-	//EVENT_OBJECT_HIDE if not received when Excel is closed while VBE is opened
 	//fix VBE window opening not maximized when closed in maximized state
-	_ASSERTE(IsWindow(g_hwMDIwnd));
-	HKCUSetBoolValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), IsWindowMaximized(GetParent(g_hwMDIwnd)));
+	//EVENT_OBJECT_HIDE if not received when host app is closed while VBE is opened
+	if (g_bVBEopen)
+	{
+		_ASSERTE(IsWindow(g_hwMDIwnd));
+		HKCUSetBoolValue(_T("Software\\T800 Productions\\VBEMDI"), _T("maximized"), IsWindowMaximized(GetParent(g_hwMDIwnd)));
+		DBGTRACE("Disconnect  HKCUSetBoolValue\n");
+	}
+	g_bVBEopen = FALSE;
 
 	//unsublcass and destroy tabstrip
 	if (g_oldTabProc)
@@ -843,7 +859,7 @@ STDAPI Disconnect()
 	if (g_hEventHook)
 	{
 		UnhookWinEvent(g_hEventHook);
-		g_hEventHook=NULL;
+		g_hEventHook = NULL;
 		DBGTRACE("vbemdi::UnhookWinEvent\n");
 	}
 

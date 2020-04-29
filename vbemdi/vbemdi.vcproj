@@ -90,7 +90,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="autover.exe &quot;$(TargetPath)&quot; /p"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
@@ -166,7 +166,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="autover.exe &quot;$(TargetPath)&quot; /p"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
@@ -241,7 +241,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="autover.exe &quot;$(TargetPath)&quot; /p"
+				CommandLine=""
 			/>
 		</Configuration>
 		<Configuration
@@ -320,7 +320,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="autover.exe &quot;$(TargetPath)&quot; /p"
+				CommandLine=""
 			/>
 		</Configuration>
 	</Configurations>
@@ -332,14 +332,6 @@
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
-			<File
-				RelativePath=".\array.h"
-				>
-			</File>
-			<File
-				RelativePath=".\debugtrace.h"
-				>
-			</File>
 			<File
 				RelativePath=".\dllmain.cpp"
 				>
@@ -381,18 +373,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\helpers.h"
-				>
-			</File>
-			<File
-				RelativePath=".\ifaces.h"
-				>
-			</File>
-			<File
-				RelativePath=".\resload.h"
-				>
-			</File>
-			<File
 				RelativePath=".\stdafx.cpp"
 				>
 				<FileConfiguration
@@ -429,15 +409,7 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\stdafx.h"
-				>
-			</File>
-			<File
 				RelativePath=".\vbemdi.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\VBEres.h"
 				>
 			</File>
 		</Filter>
@@ -459,11 +431,60 @@
 				>
 			</File>
 			<File
+				RelativePath=".\resources.rc"
+				>
+			</File>
+			<File
+				RelativePath=".\version.rc2"
+				>
+			</File>
+			<File
+				RelativePath=".\version.tt"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
+						Outputs="&quot;$(InputDir)\version.rc2&quot;"
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
+		<Filter
+			Name="Header Files"
+			>
+			<File
+				RelativePath=".\array.h"
+				>
+			</File>
+			<File
+				RelativePath=".\debugtrace.h"
+				>
+			</File>
+			<File
+				RelativePath=".\helpers.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ifaces.h"
+				>
+			</File>
+			<File
+				RelativePath=".\resload.h"
+				>
+			</File>
+			<File
 				RelativePath=".\resource.h"
 				>
 			</File>
 			<File
-				RelativePath=".\resources.rc"
+				RelativePath=".\stdafx.h"
+				>
+			</File>
+			<File
+				RelativePath=".\VBEres.h"
 				>
 			</File>
 		</Filter>

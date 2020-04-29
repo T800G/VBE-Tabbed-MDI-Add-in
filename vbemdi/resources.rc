@@ -20,43 +20,13 @@ IDM_TABSTRIP MENU
 		MENUITEM "Close All", IDC_MDICLOSEALL
     }
 }
+
 #include "menu.rc2"
 
 //
-// Version Information resources
+// generated Version Information resources
 //
-LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     1,1,0,0
-    PRODUCTVERSION  1,1,0,0
-    FILEOS          VOS__WINDOWS32
-    FILETYPE        VFT_DLL
-    FILESUBTYPE     VFT2_UNKNOWN
-    FILEFLAGSMASK   0x00000000
-    FILEFLAGS       0x00000000
-{
-    BLOCK "StringFileInfo"
-    {
-        BLOCK "040904B0"
-        {
-            VALUE "CompanyName", "T800 Productions\0"
-#ifdef _WIN64
-            VALUE "FileDescription", "VBE Tabbed MDI Add-In 64-bit\0"
-#else
-            VALUE "FileDescription", "VBE Tabbed MDI Add-In 32-bit\0"
-#endif
-            VALUE "FileVersion", "1.1\0"
-            VALUE "ProductVersion", "1.1\0"
-            VALUE "LegalCopyright", "T800 Productions \251 2019\0"
-            VALUE "ProductName", "VBE Tabbed MDI Add-In\0"
-        }
-    }
-    BLOCK "VarFileInfo"
-    {
-        VALUE "Translation", 0x0409, 0x04B0
-    }
-}
-
+#include "version.rc2"
 
 //
 // Manifest resources / Enable visual styles
