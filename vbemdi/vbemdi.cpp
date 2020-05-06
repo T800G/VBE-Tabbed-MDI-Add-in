@@ -35,6 +35,8 @@ HANDLE g_hSearchEditIMECtx;
 WNDPROC g_oldSearchStaticProc;
 WNDPROC g_oldSearchEditProc;
 
+//////////////////////////////////////////////////////////////////////////////////////
+
 #define APPWNDCLASSNAME  _T("wndclass_desked_gsk")
 //https://docs.microsoft.com/en-us/windows/win32/winauto/event-constants
 const DWORD g_arrWinEvents[]= {
@@ -50,6 +52,8 @@ void FixVBMdiChildHack()
 	HWND hwhack = FindWindowEx(g_hwMDIwnd, NULL, L"VBMdiChildHack", NULL);
 	if (hwhack && IsWindowVisible(hwhack)) ShowWindow(hwhack, SW_HIDE);
 }
+// fix tab caption "<filetitle> - tab_name (type)" >> "tab_name (type)"
+inline LPTSTR FixTabCaption(LPCTSTR pszTabCaption) { return StrRChr(pszTabCaption, StrRChr(pszTabCaption, NULL, _T(' ')), _T(' ')); }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -197,8 +201,7 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 									{
 										if (SendMessage((HWND)lParam, WM_GETTEXT, lBufLen, (LPARAM)pszBuf) == (lBufLen-1))
 										{
-											//fix tab caption "<filetitle> - tab_name (type)" >> "tab_name (type)"
-											ti.pszText = StrRChr(pszBuf, StrRChr(pszBuf, NULL, _T(' ')), _T(' '));
+											ti.pszText = FixTabCaption(pszBuf);
 											if (NULL == ti.pszText) ti.pszText = pszBuf;
 											ti.mask = TCIF_TEXT;
 											CallWindowProc(g_oldTabProc, hWnd, TCM_SETITEM, idx, (LPARAM)&ti);
@@ -379,7 +382,7 @@ void InitTabstrip(HWND hwVBE)
 				SecureZeroMemory(&ti, sizeof(TCITEM));
 				ti.mask = TCIF_TEXT | TCIF_PARAM;
 				ti.lParam = (LPARAM)hwndChildAfter;
-				ti.pszText = g_strBuff;
+				ti.pszText = FixTabCaption(g_strBuff);
 				TabCtrl_InsertItem(g_hwTabStrip, i++, &ti);
 			}
 			hwndChildAfter = FindWindowEx(g_hwMDIwnd, hwndChildAfter, NULL, NULL);

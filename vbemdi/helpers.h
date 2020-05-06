@@ -144,20 +144,22 @@ HFONT CreateMenuFont()//LONG lfWeight)
 // Also works for cursors
 LONG GetIconHeight(__in HICON hico)
 {
-SIZE sz;
-  ICONINFO ii;
-  BOOL fResult = GetIconInfo(hico, &ii);
-  if (fResult) {
-    BITMAP bm;
-    fResult = GetObject(ii.hbmMask, sizeof(bm), &bm) == sizeof(bm);
-    if (fResult) {
-      sz.cx = bm.bmWidth;
-      sz.cy = ii.hbmColor ? bm.bmHeight : bm.bmHeight / 2;
-    }
-    if (ii.hbmMask)  DeleteObject(ii.hbmMask);
-    if (ii.hbmColor) DeleteObject(ii.hbmColor);
-  }
-  return sz.cy;
+	SIZE sz;
+	sz.cx = 0;
+	sz.cy = 0;
+	ICONINFO ii;
+	BOOL fResult = GetIconInfo(hico, &ii);
+	if (fResult) {
+	BITMAP bm;
+	fResult = GetObject(ii.hbmMask, sizeof(bm), &bm) == sizeof(bm);
+	if (fResult) {
+	  sz.cx = bm.bmWidth;
+	  sz.cy = ii.hbmColor ? bm.bmHeight : bm.bmHeight / 2;
+	}
+	if (ii.hbmMask)  DeleteObject(ii.hbmMask);
+	if (ii.hbmColor) DeleteObject(ii.hbmColor);
+	}
+	return sz.cy;
 }
 
 int FindListBoxItem(HWND hwListBox, LPCTSTR pszSubstring, BOOL bWrapAround, BOOL bSetCaretIndex)
