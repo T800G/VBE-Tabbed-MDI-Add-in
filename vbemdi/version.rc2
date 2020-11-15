@@ -3,8 +3,8 @@
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION     1,2,7431,18259
-    PRODUCTVERSION  1,2,7431,18259
+    FILEVERSION     1,2,7624,29225
+    PRODUCTVERSION  1,2,7624,29225
     FILEOS          VOS__WINDOWS32
     FILETYPE        VFT_DLL
     FILESUBTYPE     VFT2_UNKNOWN
@@ -21,8 +21,8 @@ VS_VERSION_INFO VERSIONINFO
 #else
             VALUE "FileDescription", "VBE Tabbed MDI Add-In 32-bit\0"
 #endif
-            VALUE "FileVersion", "1.2.7431.18259\0"
-            VALUE "ProductVersion", "1.2.7431.18259\0"
+            VALUE "FileVersion", "1.2.7624.29225\0"
+            VALUE "ProductVersion", "1.2.7624.29225\0"
             VALUE "LegalCopyright", "T800 Productions \251 2020\0"
             VALUE "ProductName", "VBE Tabbed MDI Add-In\0"
         }

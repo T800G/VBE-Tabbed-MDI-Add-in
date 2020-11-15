@@ -76,6 +76,13 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 				return lret;
 			}
 		break;
+		case WM_LBUTTONDBLCLK:
+			{
+				DBGTRACE("WM_LBUTTONDBLCLK\n");
+				PostMessage(hWnd, WM_COMMAND, (WPARAM)IDC_MDICLOSE, 0);
+				return 0;
+			}
+		break;
 		//show context menu
 		case WM_RBUTTONUP:
 			{
