@@ -446,7 +446,34 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						Outputs="&quot;$(InputDir)\version.rc2&quot;"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						Outputs="&quot;$(InputDir)\version.rc2&quot;"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						Outputs="&quot;$(InputDir)\version.rc2&quot;"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
 						Outputs="&quot;$(InputDir)\version.rc2&quot;"
 					/>
 				</FileConfiguration>

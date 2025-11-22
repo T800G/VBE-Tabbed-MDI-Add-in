@@ -441,7 +441,7 @@ LRESULT CALLBACK NewPathStaticProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 return CallWindowProc(g_oldPathStaticProc, hWnd, message, wParam, lParam);
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-LRESULT CALLBACK NewSearchEditProc(HWND hWnd, WORD message, WORD wParam, LONG lParam)
+LRESULT CALLBACK NewSearchEditProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
