@@ -1,6 +1,10 @@
 #ifndef _VBERES_A264B069_3BD7_4093_9F46_8039C86349E8_
 #define _VBERES_A264B069_3BD7_4093_9F46_8039C86349E8_
 
+#include <Windows.h>
+#include "debugtrace.h"
+
+//// references dialog resource in VBE
 //LANGUAGE 9, SUBLANG_DEFAULT
 //4040 DIALOG 0, 0, 286, 204
 //STYLE DS_3DLOOK | DS_MODALFRAME | DS_SETFONT | WS_CAPTION | WS_VISIBLE | WS_POPUP | WS_SYSMENU
@@ -22,7 +26,6 @@
 //    CONTROL         "&D", 4529, WC_BUTTON, WS_TABSTOP | WS_TABSTOP | BS_OWNERDRAW, 182, 96, 14, 14, WS_EX_LEFT
 //    CONTROL         "Priority", 65535, WC_STATIC, NOT WS_GROUP | SS_LEFTNOWORDWRAP | SS_NOPREFIX, 177, 82, 24, 8, WS_EX_LEFT
 //}
-
 #define ID_VBE_REFDLG_OKBUTTON			1
 #define ID_VBE_REFDLG_CANCELBUTTON		2
 
@@ -35,6 +38,51 @@
 #define ID_VBE_REFDLG_LOCATIONSTATIC	5053
 #define ID_VBE_REFDLG_LANGUAGESTATIC	5054
 #define ID_VBE_REFDLG_RESULTGROUP		5055
+
+//// get first available language of the resource in dll
+//// could be modified to check if language resource is available
+//WORD GetResourceLanguageID(HMODULE hResourceModule, LPCTSTR lpszResourceType, LPCTSTR lpszResourceName)
+//{
+//	//local class callback trick
+//	class CEnumResourceLanguages
+//	{
+//		public:
+//			CEnumResourceLanguages() { m_wIDLanguage = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL); }
+//		protected:
+//			static BOOL EnumResLangProc(HMODULE hModule, LPCTSTR lpszType, LPCTSTR lpszName, WORD wIDLanguage, LONG_PTR lParam)
+//			{
+//				UNREFERENCED_PARAMETER(hModule);
+//				UNREFERENCED_PARAMETER(lpszType);
+//				UNREFERENCED_PARAMETER(lpszName);
+//				return ((CEnumResourceLanguages*)lParam)->EnumResLangProcImpl(wIDLanguage);
+//			}
+//			BOOL EnumResLangProcImpl(WORD wIDLanguage)
+//			{
+//				m_wIDLanguage = wIDLanguage;
+//DBGTRACE("EnumResLangProcImpl  wIDLanguage=%d\n", wIDLanguage);
+//				return TRUE;
+//			}
+//		public:
+//			BOOL EnumResLanguages(HMODULE hModule, LPCTSTR lpszType, LPCTSTR lpszName)
+//			{
+//DBGTRACE("CEnumResourceLanguages::EnumResourceLanguages(%x, %d, %d)\n", hModule, lpszType, lpszName);
+//				if (NULL == hModule)  return FALSE;
+//				if (NULL == lpszType) return FALSE;
+//				if (NULL == lpszName) return FALSE;
+//				BOOL bRet = ::EnumResourceLanguages(hModule, lpszType, lpszName, (ENUMRESLANGPROC)EnumResLangProc, (LONG_PTR)this);
+//DBGTRACE("bRet=%d\n", bRet);
+//				return bRet;
+//			}
+//			WORD GetIDLanguage() const { return m_wIDLanguage; }
+//		private:
+//			WORD m_wIDLanguage;
+//	} erl;
+//
+//	BOOL b = erl.EnumResLanguages(hResourceModule, lpszResourceType, lpszResourceName);
+//	if (!b) { DBGTRACE("ccerl.EnumResourceLanguages = FALSE\n"); }
+//
+//return erl.GetIDLanguage();
+//}
 
 
 #endif//_VBERES_A264B069_3BD7_4093_9F46_8039C86349E8_

@@ -10,7 +10,7 @@
 //
 // Menu resources
 //
-LANGUAGE LANG_NEUTRAL,SUBLANG_NEUTRAL
+LANGUAGE LANG_NEUTRAL,SUBLANG_NEUTRAL //also used as fallback for LANG_ENGLISH, SUBLANG_ENGLISH_US (VBE UI default language)
 IDM_TABSTRIP MENU
 {
     POPUP "tabctx"
@@ -20,11 +20,11 @@ IDM_TABSTRIP MENU
 		MENUITEM "Close All", IDC_MDICLOSEALL
     }
 }
-
+//menu translations
 #include "menu.rc2"
 
 //
-// generated Version Information resources
+// T4 template generated Version Information resources
 //
 #include "version.rc2"
 

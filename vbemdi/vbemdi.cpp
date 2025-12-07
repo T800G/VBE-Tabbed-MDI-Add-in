@@ -4,6 +4,9 @@
 #include "VBEres.h"
 #include "resload.h"
 #include "array.h"
+#include "disphelper.h"
+#include "mso.h"
+#include "lcids.h"
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
@@ -34,6 +37,8 @@ HWND g_hwSearchEditBox;
 HANDLE g_hSearchEditIMECtx;
 WNDPROC g_oldSearchStaticProc;
 WNDPROC g_oldSearchEditProc;
+
+WORD g_VBElanguageID;
 
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -100,10 +105,9 @@ LRESULT CALLBACK NewTabstripProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM 
 						if (!PtInRect(&rc, pt)) return 0;
 					}
 				}
-				//TODO match VBA IDE language
-				//TODO localize menu in more languages
-				//TODO needs more testing of localization
-				HMENU hctxmenu = LoadMenuLC((HINSTANCE)&__ImageBase, IDM_TABSTRIP, GetUserDefaultUILanguage());
+
+				_ASSERTE(g_VBElanguageID);
+				HMENU hctxmenu = LoadMenuLC((HINSTANCE)&__ImageBase, IDM_TABSTRIP, g_VBElanguageID);
 				if (hctxmenu == NULL) return 0;
 				HMENU hmenuTrackPopup = GetSubMenu(hctxmenu, 0);
 				if (hmenuTrackPopup)
@@ -291,7 +295,7 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		{
 			DBGTRACE("mdi WM_NCCALCSIZE\n");
 			LRESULT lret = CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
-			//TODO hide tabstrip if no child windows
+//TODO hide tabstrip if no child windows?
 			if (wParam) { ((LPNCCALCSIZE_PARAMS)lParam)->rgrc[0].top += (g_tabstripHeight - GetSystemMetrics(SM_CXEDGE)); }
 			else { ((LPRECT)lParam)->top += (g_tabstripHeight - GetSystemMetrics(SM_CXEDGE)); }
 		return lret;
@@ -359,6 +363,7 @@ LRESULT CALLBACK NewMDIProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
     }
 return CallWindowProc(g_oldMDIproc, hWnd, message, wParam, lParam);
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void InitTabstrip(HWND hwVBE)
 {
@@ -610,7 +615,6 @@ void InitReferencesDialog(HWND hDlg)
 	/////////////////////////////////
 	//setup reference search controls
 	if (!ScreenToClientRect(hDlg, &rcOK)) return; //convert only once!!!
-	//TODO: test button visual look on Win2k
 	#ifndef SM_CXFOCUSBORDER
 	#define SM_CXFOCUSBORDER 83
 	#endif
@@ -725,12 +729,41 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  wndclass_desked_gsk\n");
 				InitTabstrip(hwnd);
+
+				////TESTING
+				//{
+				////raw VBE pointer is available as the "VBAutomation" window property
+				//	IDispatch* pVBIDE_Window = reinterpret_cast<IDispatch *>(GetProp(hwnd, _T("VBAutomation")));
+				//	if (pVBIDE_Window)
+				//	{
+				//		DBGTRACE("GOT  pVBIDE_Window\n");
+				//		VARIANT vResult;
+				//		VariantInit(&vResult);
+				//		HRESULT hrtemp = AutoWrap(DISPATCH_PROPERTYGET, &vResult, pVBIDE_Window, L"VBE", 0);
+				//		DBGTRACE("hrtemp=0x%x\n", hrtemp);
+				//		if SUCCEEDED(hrtemp)
+				//		{
+				//			DBGTRACE("GOT  VBE reference\n");   //<<< this works only from native code/dll (unless "Trust access to the VBA project object model" is enabled(?))
+				//			vResult.pdispVal->Release();
+				//		}
+				//	}
+				//}
+
 			}
 			if (IsWindowClass(hwnd, _T("#32770")))
 			{
 				DBGTRACE("EVENT_OBJECT_SHOW  #32770\n");
 				InitReferencesDialog(hwnd);
 			}
+
+			////TESTING
+			// menu popups can be detected like this (window title belongs to child window to which context menu is connected to)
+			// menus are actually command bars
+			//if (IsWindowClass(hwnd, _T("MsoCommandBarPopup")) && IsWindowTitle(hwnd, _T("Immediate Window")))
+			//{
+			//	DBGTRACE("EVENT_OBJECT_SHOW  MsoCommandBarPopup Immediate Window\n");
+			//}
+
 		break;
 		case EVENT_SYSTEM_FOREGROUND:
 			if (!g_bVBEopen && IsWindowClass(hwnd, APPWNDCLASSNAME))
@@ -749,7 +782,7 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 				DestroyPathBox(hwnd);
 				DestroySearch(hwnd);
 			}
-			//VBE window is hidden when closed (EVENT_OBJECT_HIDE if not received) and destroyed when host app is closed
+			//VBE window is hidden when closed (EVENT_OBJECT_HIDE is not received) and destroyed when host app is closed
 			if (IsWindowClass(hwnd, APPWNDCLASSNAME))
 			{
 				DBGTRACE("EVENT_OBJECT_HIDE  wndclass_desked_gsk\n");
@@ -770,7 +803,7 @@ void CALLBACK WinEventProcCallback(HWINEVENTHOOK hook, DWORD dwEvent, HWND hwnd,
 STDAPI Connect(IDispatch *pApplication)
 {
 	if (NULL == pApplication) return E_INVALIDARG;
-	HRESULT hr=S_OK;
+	HRESULT hr = S_OK;
 
 	_ASSERTE(NULL == g_hSearchEditIMECtx);
 	_ASSERTE(NULL == g_hwLastActiveMDIChild);
@@ -816,15 +849,56 @@ STDAPI Connect(IDispatch *pApplication)
 				}
 			}
 		}
-		else { hr = ERROR_ALREADY_EXISTS; DBGTRACE("ERROR_ALREADY_EXISTS\n"); }
+		else { hr = ERROR_ALREADY_EXISTS; DBGTRACE("EVENT HOOK ERROR_ALREADY_EXISTS\n"); }
 	}
+
+	//match VBE ui language
+	if SUCCEEDED(hr)
+	{
+		_ASSERTE(NULL == g_VBElanguageID);
+
+		// VBE is localized only for some languaes through VBEUIINTL.DLL and VBE6INTL.DLL or VBE7INTL.DLL
+		// but these are resource-only file so GetModuleHandle doesn't work here
+		//HMODULE hVbeResDLL = GetModuleHandle(_T("VBEUIINTL.dll")); 
+		//DBGTRACE("VBEUIINTL handle =0x%x\n", hVbeResDLL);
+		//if (hVbeResDLL)
+		//{
+		//	g_VBElanguageID = GetResourceLanguageID(hVbeResDLL, RT_DIALOG, MAKEINTRESOURCE(ID_VBE_UI_BUTTON_EDITOR));
+		//	DBGTRACE("VBEUIINTL language= %s\n", __getLCIDdescription(g_VBElanguageID));
+		//}
+
+		//get current language setting for office
+		VARIANT vtLanguageSettings;
+		VariantInit(&vtLanguageSettings);
+		HRESULT hrtemp = AutoWrap(DISPATCH_PROPERTYGET, &vtLanguageSettings, g_pApplication, L"LanguageSettings", 0);
+		DBGTRACE("hrtemp=0x%x\n", hrtemp);
+		if SUCCEEDED(hrtemp)
+		{
+			DBGTRACE("DISPATCH_PROPERTYGET  LanguageSettings\n");
+			VARIANT vResult;
+			VariantInit(&vResult);
+			VARIANT vtMsoAppLanguageID;
+			VariantInit(&vtMsoAppLanguageID);
+			vtMsoAppLanguageID.vt = VT_I4; //VBA Long type
+			vtMsoAppLanguageID.lVal = msoLanguageIDUI;
+			//vba: Application.LanguageSettings.LanguageID(msoLanguageIDUI)
+			hrtemp = AutoWrap(DISPATCH_PROPERTYGET, &vResult, vtLanguageSettings.pdispVal, L"LanguageID", 1, vtMsoAppLanguageID) ;
+			if SUCCEEDED(hrtemp)
+			{
+				g_VBElanguageID = (WORD)vResult.lVal;
+				DBGTRACE("DISPATCH_PROPERTYGET  msoLanguageIDUI =%d   %s\n", g_VBElanguageID, __getLCIDdescription(g_VBElanguageID));
+			}
+			vtLanguageSettings.pdispVal->Release();
+		}
+	}
+
 return hr;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 STDAPI Disconnect()
 {
 	//fix VBE window opening not maximized when closed in maximized state
-	//EVENT_OBJECT_HIDE if not received when host app is closed while VBE is opened
+	//EVENT_OBJECT_HIDE is not received when host app is closed while VBE is opened
 	if (g_bVBEopen)
 	{
 		_ASSERTE(IsWindow(g_hwMDIwnd));

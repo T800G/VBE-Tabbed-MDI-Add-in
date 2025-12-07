@@ -446,7 +446,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 						Outputs="&quot;$(InputDir)\version.rc2&quot;"
 					/>
 				</FileConfiguration>
@@ -455,7 +455,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 						Outputs="&quot;$(InputDir)\version.rc2&quot;"
 					/>
 				</FileConfiguration>
@@ -464,7 +464,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 						Outputs="&quot;$(InputDir)\version.rc2&quot;"
 					/>
 				</FileConfiguration>
@@ -473,7 +473,7 @@
 					>
 					<Tool
 						Name="VCCustomBuildTool"
-						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;"
+						CommandLine="TextTransform.exe &quot;$(InputPath)&quot;&#x0D;&#x0A;"
 						Outputs="&quot;$(InputDir)\version.rc2&quot;"
 					/>
 				</FileConfiguration>
@@ -491,11 +491,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\disphelper.h"
+				>
+			</File>
+			<File
 				RelativePath=".\helpers.h"
 				>
 			</File>
 			<File
 				RelativePath=".\ifaces.h"
+				>
+			</File>
+			<File
+				RelativePath=".\lcids.h"
 				>
 			</File>
 			<File
